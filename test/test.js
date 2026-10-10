@@ -50,10 +50,15 @@ const { chromium, devices } = require('playwright');
   for (let k = 0; k < 40; k++) { st = await S(); if (st.downPhase === 'reviving') break; await W(250); }
   console.log('revive phase', st.downPhase, JSON.stringify(st.girls));
   await page.evaluate(() => RINSED.clearYaw());
-  await W(900);
+  console.log('toast opacity on arrival', await page.evaluate(() => $('toast').style.opacity));
+  await W(2600);
+  st = await S(); console.log('mid revive hp', st.hp, st.downPhase);
   await page.screenshot({ path: '../shot-revive.png' });
-  await W(2500);
-  st = await S(); console.log('after revive', JSON.stringify({ hp: st.hp, downed: st.downed, gs: st.gameState }));
+  await W(1800);
+  st = await S(); console.log('later revive hp', st.hp, st.downPhase);
+  const nearThugs = () => page.evaluate(() => thugs.filter(t => !t.dead && t.mesh.position.distanceTo(player.position) < 2).length);
+  for (let k = 0; k < 20; k++) { st = await S(); if (!st.downed) break; await W(300); }
+  console.log('after revive', JSON.stringify({ hp: st.hp, downed: st.downed, gs: st.gameState }), 'grace', await page.evaluate(() => thugGrace.toFixed(2)), 'thugs within 2m', await nearThugs());
   // no medics left -> game over
   await page.evaluate(() => healers.forEach(h => h.reviveCd = 999));
   await W(2200);

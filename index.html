@@ -1774,8 +1774,8 @@
         }
 
         /* --- DOWNED / REVIVE --- */
-        let downed = false, downPhase = '', downTimer = 0, reviver = null;
-        const REVIVE_TIME = 2.2, REVIVE_HP = 60, REVIVE_COOLDOWN = 60, WALKUP_HEAL = 25, WALKUP_COOLDOWN = 14;
+        let downed = false, downPhase = '', downTimer = 0, reviver = null, thugGrace = 0;
+        const REVIVE_TIME = 6.0, REVIVE_HP = 60, REVIVE_COOLDOWN = 60, WALKUP_HEAL = 25, WALKUP_COOLDOWN = 14;
         const _torso = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
         function playerLocal(x, z, out) { return out.set(x, 0, z).applyAxisAngle(_up, player.rotation.y).add(player.position); }
 
@@ -1818,7 +1818,7 @@
                 best.runSpeed = Math.max(7.5, len / 6); // she gets there within ~6s
                 best.state = 'run'; best.runT = 0;
                 setTimeout(() => { if (reviver === best && best.state === 'run') sayLine(best, 'coming', true); }, 900);
-                setTimeout(() => showToast(`${best.name} is on her way!`, '#39ff7a'), 1500);
+                showToast(`${best.name} is on her way!`, '#39ff7a'); toastTimer = 6;
             } else {
                 downPhase = 'dead';
                 setTimeout(() => { if (downed && downPhase === 'dead') loseGame(); }, 1500);
@@ -1834,7 +1834,7 @@
             player.position.y += ((lying ? gh + 0.2 : gh) - player.position.y) * Math.min(1, dt * 8);
             if (downPhase === 'getup' && Math.abs(player.rotation.x) < 0.05) {
                 player.rotation.x = 0; player.position.y = gh;
-                downed = false; downPhase = ''; invuln = 2.0;
+                downed = false; downPhase = ''; invuln = 2.0; thugGrace = 2.0;
             }
             if (reviver && downPhase === 'reviving') {
                 playerLocal(0, -1.0, _torso); _torso.y = 0.2;
@@ -1867,7 +1867,8 @@
                         else { m.position.x += vx / vd * step; m.position.z += vz / vd * step; m.rotation.y = Math.atan2(vx, vz); }
                     }
                     if (!h.path || !h.path.length) {
-                        h.state = 'revive'; h.reviveT = 0; downPhase = 'reviving';
+                        h.state = 'revive'; h.reviveT = 0; h.plusT = 0; downPhase = 'reviving';
+                        toastTimer = 0; $('toast').style.opacity = 0; // she's here: drop the 'on her way' message
                         sparkles.visible = true;
                         sayLine(h, 'revive', true);
                         playSound('heal');
@@ -1880,14 +1881,25 @@
                     playerLocal(0, -1.0, _torso);
                     m.rotation.y = Math.atan2(_torso.x - m.position.x, _torso.z - m.position.z);
                     poseGirl(h, 'kneel', dt);
-                    if (h.reviveT > 1.1 && !h.saidSecond) { h.saidSecond = true; }
+                    // slow, gradual revive: HP bar fills 0 -> REVIVE_HP while she works
+                    const prog = Math.min(1, h.reviveT / REVIVE_TIME);
+                    hp = REVIVE_HP * prog;
+                    sparkles.material.size = 0.45 + 0.25 * (0.5 + 0.5 * Math.sin(h.reviveT * 9));
+                    sparkles.material.opacity = 0.65 + 0.35 * Math.sin(h.reviveT * 6);
+                    h.plusT -= dt;
+                    if (h.plusT <= 0) {
+                        h.plusT = 0.45;
+                        playerLocal((Math.random() - 0.5) * 1.2, -1.0 + (Math.random() - 0.5) * 1.2, _v1); _v1.y = 0.8 + Math.random() * 0.5;
+                        spawnNumber('+', _v1, 'heal');
+                    }
+                    if (h.reviveT > REVIVE_TIME * 0.5 && !h.saidSecond) { h.saidSecond = true; sayLine(h, 'revive', true); }
                     if (h.reviveT >= REVIVE_TIME) {
                         hp = REVIVE_HP;
                         h.reviveCd = REVIVE_COOLDOWN; h.healCd = WALKUP_COOLDOWN;
                         h.state = 'idle'; h.saidSecond = false;
                         sparkles.visible = false;
                         downPhase = 'getup'; reviver = null;
-                        spawnNumber('+' + REVIVE_HP, _v1.set(p.x, p.y + 1.2, p.z), 'heal');
+                        spawnNumber('REVIVED', _v1.set(p.x, p.y + 1.2, p.z), 'heal');
                         playSound('relic');
                         setTimeout(() => sayLine(h, 'up', true), 350);
                         showToast(`${h.name} got you back up`, '#39ff7a');
@@ -2079,7 +2091,7 @@
             relics = []; thugs = []; healers = [];
             dmgNums.forEach(d => d.el.remove()); dmgNums = [];
             newMap(firstSeed || (Math.random() * 1e9) | 0); firstSeed = 0;
-            downed = false; downPhase = ''; reviver = null; if (sparkles) sparkles.visible = false;
+            downed = false; downPhase = ''; reviver = null; thugGrace = 0; if (sparkles) sparkles.visible = false;
             $('rinsed-flash').classList.remove('on'); $('game-container').classList.remove('shake');
             hp = MAX_HP; stamina = MAX_STAMINA; relicCount = 0; thugsDowned = 0; playTime = 0;
             running = false; wantJump = false; hitHeld = false; velY = 0; onGround = true;
@@ -2285,6 +2297,7 @@
         /* --- THUG AI --- */
         function updateThugs(dt) {
             const p = player.position;
+            if (thugGrace > 0 && !downed) thugGrace -= dt;
             for (let i = thugs.length - 1; i >= 0; i--) {
                 const t = thugs[i], m = t.mesh;
                 if (t.dead) {
@@ -2306,7 +2319,7 @@
                 }
                 if (t.stun > 0) { t.stun -= dt; resolveCollision(m.position, 0.45, 0); continue; }
 
-                if (downed) { t.windup = 0; t.state = dist < 10 ? 'flee' : 'wander'; }
+                if (downed || thugGrace > 0) { t.windup = 0; t.state = dist < 10 ? 'flee' : 'wander'; }
                 else if (gameState === 'playing') {
                     if (dist < 13 && Math.abs(p.y - m.position.y) < 4) t.state = 'chase';
                     else if (dist > 22) t.state = 'wander';
