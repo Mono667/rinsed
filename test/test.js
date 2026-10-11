@@ -14,6 +14,21 @@ const { chromium, devices } = require('playwright');
   await W(2500);
   const vp = page.viewportSize();
   await page.screenshot({ path: '../shot-levelselect.png' });
+  const fits = (sel) => page.evaluate((sel) => { const e = document.querySelector(sel); const r = [...e.querySelectorAll('*')].reduce((m, c) => Math.max(m, c.getBoundingClientRect().bottom), 0); return { bottom: Math.round(r), h: innerHeight, sh: e.scrollHeight }; }, sel);
+  let f0 = await fits('#start-screen'); ok('start screen fits ' + JSON.stringify(f0), f0.bottom <= f0.h);
+  // HOW TO PLAY (start screen)
+  await page.tap('#btn-howto'); await W(300);
+  let fh = await fits('#howto-screen');
+  ok('how-to fits landscape phone ' + JSON.stringify(fh), await page.isVisible('#howto-screen') && fh.bottom <= fh.h && fh.sh <= fh.h + 1);
+  await page.screenshot({ path: '../shot-howto.png' });
+  await page.tap('#btn-howto-back'); await W(200);
+  ok('how-to back -> start screen', await page.isVisible('#start-screen') && !(await page.isVisible('#howto-screen')));
+  // OUTFITS (all locked except default)
+  await page.tap('#btn-outfits'); await W(400);
+  ok('outfits: 4 cards, 3 locked', (await page.$$('.outfit-card')).length === 4 && (await page.$$('.outfit-card.locked')).length === 3);
+  await page.tap('.outfit-card[data-id="mustard"]'); await W(200);
+  ok('locked outfit not selectable', (await page.evaluate(() => RINSED.save().outfit)) === 'default');
+  await page.tap('#btn-outfit-back'); await W(200);
   // ---- Level 1 ----
   await page.tap('#btn-start'); await W(600);
   let st = await S();
@@ -58,11 +73,37 @@ const { chromium, devices } = require('playwright');
   // poster close-up (MUSTARD CRIMES guaranteed on every level)
   const posters = await page.evaluate(() => RINSED.posters().map(p => p.crime));
   console.log('L1 posters', posters.length, JSON.stringify(posters));
-  ok('L1 posters 8-12 incl. MUSTARD + TOO LEGIT', posters.length >= 8 && posters.length <= 12 && posters.includes('MUSTARD CRIMES') && posters.some(c => c.startsWith('BEING TOO LEGIT')));
+  ok('L1 decorative posters 6-8 incl. MUSTARD + TOO LEGIT', posters.length >= 6 && posters.length <= 8 && posters.includes('MUSTARD CRIMES') && posters.some(c => c.startsWith('BEING TOO LEGIT')));
   console.log('poster closeup', JSON.stringify(await page.evaluate(() => RINSED.posterCloseup('MUSTARD'))));
   await W(700);
   await page.screenshot({ path: '../shot-poster.png' });
   await page.evaluate(() => RINSED.relicCloseupEnd());
+  // ---- gold bonus posters ----
+  let bonus = await page.evaluate(() => RINSED.bonus());
+  console.log('L1 bonus', JSON.stringify(bonus));
+  ok('L1 has exactly 2 gold posters, reachable', bonus.length === 2 && (await page.evaluate(() => RINSED.bonusReachable())).every(Boolean));
+  const grab = async (k) => {
+    const b = (await page.evaluate(() => RINSED.bonus()))[k];
+    if (b.top) await page.evaluate(([x, z]) => { player.position.set(x, 2.05, z); }, b.stand);
+    else await page.evaluate((k) => { RINSED.bonusFrame(k, 1.0); }, k);
+  };
+  // pickup shot: frame AJ in front of a poster, then step up to it
+  const wallK = bonus.findIndex(b => !b.top) >= 0 ? bonus.findIndex(b => !b.top) : 0;
+  await page.evaluate((k) => RINSED.bonusFrame(k, 3.4), wallK); await W(700);
+  await page.screenshot({ path: '../shot-poster-gold.png' });
+  await grab(wallK); await W(260);
+  await page.screenshot({ path: '../shot-poster-pickup.png' });
+  await W(700);
+  ok('poster 1 collected, HUD 1/2', (await page.evaluate(() => RINSED.bonusFound())) === 1 && (await page.textContent('#poster-count')) === '1' && (await page.textContent('#toast')).includes('WANTED POSTER 1/2'));
+  await grab(1 - wallK); await W(1300);
+  ok('poster 2 collected -> MUSTARD CRIMES unlocked + saved', (await page.evaluate(() => RINSED.bonusFound())) === 2 && (await page.evaluate(() => JSON.parse(localStorage.getItem('rinsed.save.v1')).unlocked)).includes('mustard') && await page.evaluate(() => document.getElementById('unlock-pop').classList.contains('show')));
+  await page.screenshot({ path: '../shot-unlock.png' });
+  // pause -> how to play -> back to pause
+  await page.tap('#btn-pause'); await W(200); await page.tap('#btn-pause-howto'); await W(200);
+  ok('pause > how to play', await page.isVisible('#howto-screen') && !(await page.isVisible('#pause-screen')));
+  await page.tap('#btn-howto-back'); await W(200);
+  ok('how to play back -> pause', await page.isVisible('#pause-screen') && (await S()).gameState === 'paused');
+  await page.tap('#btn-resume'); await W(200);
   // ---- pause menu ----
   await page.evaluate(() => RINSED.freezeDrain(false));
   await page.tap('#btn-pause'); await W(300);
@@ -80,10 +121,63 @@ const { chromium, devices } = require('playwright');
   p1 = await S(); ok('pause > restart level: new seed, same level', p1.gameState === 'playing' && p1.seed !== seedBefore && (await page.evaluate(() => RINSED.level())) === 0);
   await page.tap('#btn-pause'); await W(200); await page.tap('#btn-mainmenu'); await W(500);
   ok('pause > main menu shows level select', (await S()).gameState === 'menu' && await page.isVisible('#start-screen') && !(await page.isVisible('#hud')));
+  await page.tap('#btn-outfits'); await W(300);
+  await page.tap('.outfit-card[data-id="mustard"]'); await W(900);
+  ok('mustard outfit selectable + saved', (await page.evaluate(() => RINSED.save().outfit)) === 'mustard' && (await page.$$('.outfit-card.locked')).length === 2);
+  await page.screenshot({ path: '../shot-outfits.png' });
+  await page.tap('#btn-outfit-back'); await W(200);
+  ok('outfit label on menu', (await page.textContent('#outfit-cur')) === 'MUSTARD CRIMES');
   await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
   await page.evaluate(() => RINSED.freezeDrain(true));
-  // clear level 1 -> NEXT LEVEL
-  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  // clear level 1: 10 stems -> BOSS FIGHT vs BINO (fought to completion) -> NEXT LEVEL
+  await page.evaluate(() => RINSED.collectAll()); await W(900);
+  let bs = await page.evaluate(() => RINSED.boss());
+  ok('10 stems -> boss BINO appears (not instantly cleared)', (await S()).gameState === 'playing' && bs && bs.state === 'intro' && (await page.textContent('#relic-count')) === '10' && (await page.textContent('.relic-row')).includes('STEMS'));
+  ok('boss banner + HP bar', await page.isVisible('#boss-banner') && (await page.textContent('#boss-banner')).includes('BOSS: BINO') && await page.isVisible('#boss-bar'));
+  await page.screenshot({ path: '../shot-boss-intro.png' });
+  for (let k = 0; k < 80 && (await page.evaluate(() => RINSED.boss().state)) === 'intro'; k++) await W(200);
+  // shockwave hits if you stay on the ground...
+  await page.evaluate(() => { window.__hits = []; const o = damagePlayer; damagePlayer = function (a, f) { if (!(invuln > 0) && !downed && gameState === 'playing') window.__hits.push(a); return o(a, f); }; });
+  await page.evaluate(() => { RINSED.bossFrame(4.5); RINSED.freezeDrain(true); hp = 100; invuln = 0; window.__hits = []; });
+  await page.evaluate(() => RINSED.bossForce('slam'));
+  let shot = false;
+  for (let k = 0; k < 60; k++) { const b = await page.evaluate(() => RINSED.boss()); if (!shot && b.waveR > 1.2) { await page.screenshot({ path: '../shot-boss.png' }); shot = true; } if (b.waveR > 8 || (shot && b.waveR < 0)) break; await W(60); }
+  const hitsGround = await page.evaluate(() => window.__hits.slice());
+  ok('slam shockwave hits AJ on the ground ' + JSON.stringify(hitsGround), hitsGround.includes(16));
+  // ...and JUMP clears it (auto-press JUMP just before the ring arrives)
+  for (let k = 0; k < 40 && (await page.evaluate(() => RINSED.boss().state)) !== 'chase'; k++) await W(100);
+  await page.evaluate(() => { RINSED.bossFrame(4.5); hp = 100; invuln = 0; window.__hits = []; RINSED.bossForce('slam');
+    const tick = () => { const b = RINSED.boss(); if (!b) return; const m = b.pos, d = Math.hypot(player.position.x - m[0], player.position.z - m[2]);
+      if (b.waveR > 0 && b.waveR > d - 2.2 && onGround) wantJump = true; if (b.waveR < 0 && window.__jt) return; if (b.waveR > 0) window.__jt = 1; requestAnimationFrame(tick); };
+    window.__jt = 0; tick(); });
+  for (let k = 0; k < 60; k++) { const b = await page.evaluate(() => RINSED.boss()); if (b.waveR > 8 || (k > 15 && b.waveR < 0)) break; await W(60); }
+  const hitsJump = await page.evaluate(() => window.__hits.slice());
+  ok('jumping over the shockwave avoids damage ' + JSON.stringify(hitsJump), !hitsJump.includes(16));
+  // charge telegraph + rush
+  for (let k = 0; k < 40 && (await page.evaluate(() => RINSED.boss().state)) !== 'chase'; k++) await W(100);
+  await page.evaluate(() => { RINSED.bossFrame(8); RINSED.bossForce('charge'); });
+  for (let k = 0; k < 50 && (await page.evaluate(() => RINSED.boss().state)) === 'charge'; k++) await W(100);
+  // full fight: hold HIT, keep facing/closing on BINO; medics + revive still active (HP kept topped up by the test)
+  const thugsBefore = (await S()).thugs;
+  await page.evaluate(() => {
+    window.__fight = true;
+    const loop = () => { if (!window.__fight) return; const b = RINSED.boss(); if (!b || b.dead) { hitHeld = false; return; }
+      const dx = b.pos[0] - player.position.x, dz = b.pos[2] - player.position.z, d = Math.hypot(dx, dz);
+      if (!downed) { player.rotation.y = Math.atan2(dx, dz); if (d > 2.4) { player.position.x += dx / d * 0.08; player.position.z += dz / d * 0.08; } }
+      if (hp < 40 && !downed) hp = 80;
+      hitHeld = !downed; requestAnimationFrame(loop); };
+    loop();
+  });
+  await T('touchStart', [{ x: vp.width - 120, y: vp.height - 95, id: 9 }]);
+  let fightT = 0, bsx;
+  for (; fightT < 240; fightT++) { bsx = await page.evaluate(() => RINSED.boss()); if (bsx.dead) break; await W(500); }
+  await T('touchEnd', []);
+  await page.evaluate(() => { window.__fight = false; hitHeld = false; });
+  console.log('  boss fight', (fightT / 2).toFixed(1) + 's real', 'states seen', JSON.stringify(bsx.seen));
+  ok('BINO defeated in a real fight (swing/charge/slam/stagger all seen)', bsx.dead && ['swing', 'charge', 'slam', 'stagger'].every(k => bsx.seen.includes(k)));
+  ok('BINO called backup at half HP', bsx.backup === true);
+  for (let k = 0; k < 30 && (await S()).gameState !== 'won'; k++) await W(200);
+  await W(1100);
   ok('level1 won + next visible', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
   await page.tap('#btn-next'); await W(900);
   st = await S();
@@ -102,8 +196,10 @@ const { chromium, devices } = require('playwright');
   await page.evaluate(() => { RINSED.tp(-20, -6, 0.9); RINSED.setCam(0.9 + Math.PI, 0.55); });
   await W(800);
   await page.screenshot({ path: '../shot-tentcity.png' });
+  ok('L2 2 gold posters reachable', (await page.evaluate(() => RINSED.bonus())).length === 2 && (await page.evaluate(() => RINSED.bonusReachable())).every(Boolean));
+  console.log('  L2 bonus', JSON.stringify(await page.evaluate(() => RINSED.bonus())));
   const p2 = await page.evaluate(() => RINSED.posters().map(p => p.crime));
-  ok('L2 posters incl. MUSTARD + TOO LEGIT', p2.length >= 8 && p2.includes('MUSTARD CRIMES') && p2.some(c => c.startsWith('BEING TOO LEGIT')));
+  ok('L2 posters incl. MUSTARD + TOO LEGIT', p2.length >= 6 && p2.includes('MUSTARD CRIMES') && p2.some(c => c.startsWith('BEING TOO LEGIT')));
   await page.evaluate(() => { RINSED.tp(0, 8, Math.PI); RINSED.setCam(Math.PI + 0.3, 0.25); });
   await W(700);
   await page.screenshot({ path: '../shot-river2.png' });
@@ -126,7 +222,11 @@ const { chromium, devices } = require('playwright');
   ok('menu visible', await page.isVisible('#start-screen'));
   await page.tap('#lvl-river'); await W(200); await page.tap('#btn-start'); await W(800);
   ok('level select tent city starts L2', (await page.evaluate(() => RINSED.level())) === 1);
-  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  await page.evaluate(() => RINSED.collectAll()); await W(500);
+  ok('L2: 10 stems -> BINO', !!(await page.evaluate(() => RINSED.boss())));
+  for (let k = 0; k < 80 && (await page.evaluate(() => RINSED.boss().state)) === 'intro'; k++) await W(200);
+  await page.evaluate(() => RINSED.bossKill());
+  for (let k = 0; k < 40 && (await S()).gameState !== 'won'; k++) await W(200); await W(1100);
   ok('L2 win offers NEXT LEVEL (L3 follows)', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
   await page.tap('#win-screen .btn-menu'); await W(400);
   await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
@@ -137,16 +237,19 @@ const { chromium, devices } = require('playwright');
   st = await S();
   ok('level select DEEP FREEZE starts L3', (await page.evaluate(() => RINSED.level())) === 2 && st.gameState === 'playing' && (await page.textContent('#level-name')).includes('DEEP FREEZE'));
   ok('level3 reachable', (await page.evaluate(() => RINSED.reachable())).every(Boolean));
+  ok('L3 2 gold posters reachable', (await page.evaluate(() => RINSED.bonus())).length === 2 && (await page.evaluate(() => RINSED.bonusReachable())).every(Boolean));
+  console.log('  L3 bonus', JSON.stringify(await page.evaluate(() => RINSED.bonus())));
   const p3 = await page.evaluate(() => RINSED.posters().map(p => p.crime));
-  ok('L3 posters incl. MUSTARD + TOO LEGIT', p3.length >= 8 && p3.includes('MUSTARD CRIMES') && p3.some(c => c.startsWith('BEING TOO LEGIT')));
+  ok('L3 posters incl. MUSTARD + TOO LEGIT', p3.length >= 6 && p3.includes('MUSTARD CRIMES') && p3.some(c => c.startsWith('BEING TOO LEGIT')));
   // cold drain vs warm by a fire
-  const drainAt = async (x, z) => { await page.evaluate(([x, z]) => { RINSED.freezeDrain(false); RINSED.tp(x, z); hp = 80; }, [x, z]); const t0 = await page.evaluate(() => [hp, playTime]); await W(2500); const t1 = await page.evaluate(() => [hp, playTime]); return (t0[0] - t1[0]) / (t1[1] - t0[1]); };
+  const drainAt = async (x, z) => { await page.evaluate(([x, z]) => { RINSED.freezeDrain(false); RINSED.tp(x, z); hp = 80; invuln = 9999; }, [x, z]); const t0 = await page.evaluate(() => [hp, playTime]); await W(2500); const t1 = await page.evaluate(() => [hp, playTime]); return (t0[0] - t1[0]) / (t1[1] - t0[1]); };
   const fire = await page.evaluate(() => RINSED.fires()[0]);
   const coldRate = await drainAt(0, 0), warmRate = await drainAt(fire[0] + 1.2, fire[1] + 1.2);
   console.log('  drain/s cold', coldRate.toFixed(2), 'warm', warmRate.toFixed(2));
   ok('cold drains faster than level 1 (>0.9/s), fire slows it', coldRate > 0.9 && warmRate < coldRate * 0.5);
+  await page.evaluate(() => { invuln = 0; });
   // ice: AJ keeps sliding after letting go of the stick
-  const ice = await page.evaluate(() => RINSED.iceZones().find(z => z.r));
+  const ice = await page.evaluate(() => { const z = RINSED.iceZones().find(z => !z.r); return { x: 0.5, z: (z.z0 + z.z1) / 2 }; });
   await page.evaluate(([x, z]) => { RINSED.freezeDrain(true); RINSED.tp(x, z, 0); }, [ice.x, ice.z]);
   const onIce = await page.evaluate(() => RINSED.onIce());
   await T('touchStart', [{ x: jx, y: jy, id: 7 }]); await T('touchMove', [{ x: jx, y: jy - 55, id: 7 }]); await W(700);
@@ -160,9 +263,22 @@ const { chromium, devices } = require('playwright');
   await page.evaluate(() => { RINSED.tp(cellX(11), cellX(19), Math.PI); RINSED.setCam(Math.PI, 0.18); });
   await W(1000);
   await page.screenshot({ path: '../shot-winter2.png' });
-  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  await page.evaluate(() => RINSED.collectAll()); await W(500);
+  for (let k = 0; k < 80 && (await page.evaluate(() => RINSED.boss().state)) === 'intro'; k++) await W(200);
+  await page.evaluate(() => RINSED.bossKill());
+  for (let k = 0; k < 40 && (await S()).gameState !== 'won'; k++) await W(200); await W(1100);
   ok('L3 win = all cleared, no next', (await S()).gameState === 'won' && !(await page.isVisible('#btn-next')) && (await page.textContent('#win-sub')).includes('All levels'));
   await page.tap('#win-screen .btn-menu'); await W(300); await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(700);
+  // persistence: reload page, save survives, outfit applied; preview each outfit
+  await page.reload(); await W(2500);
+  ok('save persists across reload', (await page.evaluate(() => RINSED.save().outfit)) === 'mustard' && (await page.textContent('#outfit-cur')) === 'MUSTARD CRIMES');
+  for (const id of ['legit', 'winter', 'mustard']) {
+    await page.evaluate((id) => { RINSED.outfit(id); }, id);
+    await page.tap('#btn-outfits'); await W(500);
+    await page.screenshot({ path: '../shot-outfit-' + id + '.png' });
+    await page.tap('#btn-outfit-back'); await W(150);
+  }
+  await page.tap('#btn-start'); await W(700);
   const fps = await page.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); (function f() { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else r(n / 2); })(); }));
   console.log('fps (swiftshader, no GPU)', fps, JSON.stringify(await page.evaluate(() => RINSED.renderInfo())));
   console.log('ERRORS:', errors.length ? errors : 'none');

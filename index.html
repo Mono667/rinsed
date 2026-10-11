@@ -257,6 +257,52 @@
         .pause-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
         #pause-screen { background: rgba(6, 4, 14, 0.72); z-index: 200; }
         .level-row { font-size: 0.75rem; color: #00f0ff; letter-spacing: 2px; }
+        #boss-bar { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(36vw, 340px); display: none;
+            text-align: center; font: italic 900 0.95rem Impact, 'Arial Black', sans-serif; letter-spacing: 3px; color: #ff9a4a; text-shadow: 0 0 8px rgba(255, 90, 0, 0.8); z-index: 120; pointer-events: none; }
+        #boss-bar .bb { height: 11px; margin-top: 2px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); border: 1.5px solid rgba(255, 140, 60, 0.8); overflow: hidden; }
+        #boss-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff2a1a, #ff8a2a); transition: width 0.15s; }
+        #boss-banner { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 150; }
+        #boss-banner.on { display: flex; animation: bb-in 2.2s ease-out forwards; }
+        #boss-banner .title-logo { font-size: clamp(2.6rem, 14vh, 5.5rem); background: linear-gradient(90deg, #ff6a00, #ff1a3a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(255, 80, 0, 0.8)); }
+        #boss-banner .sub { font: bold 0.85rem 'Segoe UI', Arial, sans-serif; letter-spacing: 4px; color: #ffd0a0; }
+        @keyframes bb-in { 0% { opacity: 0; transform: scale(1.8); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(0.96); } }
+        .poster-row { font-size: 0.8rem; color: #ffd040; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255, 200, 40, 0.7); }
+        .menu-row { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+        .btn-small { padding: 6px 14px; border-radius: 16px; font: bold 0.8rem 'Segoe UI', Arial, sans-serif; letter-spacing: 1.5px; color: #ffe9a8;
+            background: rgba(40, 30, 10, 0.85); border: 1.5px solid rgba(255, 200, 60, 0.7); cursor: pointer; touch-action: manipulation; }
+        /* HOW TO PLAY */
+        #howto-screen { background: rgba(6, 4, 14, 0.94); z-index: 220; justify-content: center; padding: 8px 16px; }
+        #howto-screen h2 { margin: 0 0 3px; font: italic 900 1.3rem Impact, 'Arial Black', sans-serif; letter-spacing: 3px;
+            background: linear-gradient(90deg, #ff2a4a, #ff2ad8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .howto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 22px; max-width: 780px; width: 100%; text-align: left;
+            font: 0.7rem/1.3 'Segoe UI', Arial, sans-serif; color: #cfd3e0; }
+        #howto-screen .btn { margin-top: 6px; padding: 7px 28px; font-size: 1.05rem; }
+        .howto-grid div { display: flex; gap: 8px; align-items: flex-start; }
+        .howto-grid .ic { flex: 0 0 34px; text-align: center; font-weight: bold; color: #ffcc00; padding-top: 1px; }
+        .howto-grid b { color: #ffcc00; }
+        .howto-grid .hd { grid-column: 1 / -1; color: #00f0ff; font-weight: bold; letter-spacing: 2px; font-size: 0.72rem; margin-top: 2px; border-bottom: 1px solid rgba(0, 240, 255, 0.25); }
+        .key { display: inline-block; padding: 0 5px; border-radius: 6px; border: 1px solid #889; color: #fff; font-size: 0.66rem; }
+        /* OUTFITS */
+        #outfit-screen { background: linear-gradient(90deg, rgba(6, 4, 14, 0.95) 0%, rgba(6, 4, 14, 0.85) 48%, rgba(6, 4, 14, 0) 62%); z-index: 210;
+            align-items: flex-start; justify-content: center; padding-left: max(18px, env(safe-area-inset-left)); }
+        #outfit-screen h2 { margin: 0 0 6px; font: italic 900 1.6rem Impact, 'Arial Black', sans-serif; letter-spacing: 3px; color: #ffd040; text-shadow: 0 0 14px rgba(255, 190, 40, 0.6); }
+        .outfit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(48vw, 430px); }
+        .outfit-card { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 12px; cursor: pointer; text-align: left;
+            background: rgba(20, 24, 38, 0.92); border: 2px solid rgba(255, 255, 255, 0.12); color: #dfe3ee; font: 0.68rem/1.25 'Segoe UI', Arial, sans-serif; }
+        .outfit-card .sw { flex: 0 0 34px; height: 34px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.3); }
+        .outfit-card .nm { font: bold 0.8rem 'Segoe UI', Arial, sans-serif; letter-spacing: 1px; color: #fff; }
+        .outfit-card.locked { opacity: 0.55; filter: grayscale(0.8); }
+        .outfit-card.sel { border-color: #ffd040; box-shadow: 0 0 14px rgba(255, 200, 40, 0.6); }
+        .outfit-card .st { color: #ffcc00; font-weight: bold; }
+        .outfit-card.locked .st { color: #ff7a7a; }
+        #unlock-pop { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(0.6); opacity: 0; pointer-events: none; z-index: 160;
+            text-align: center; padding: 10px 26px; border-radius: 16px; background: rgba(30, 20, 0, 0.88); border: 2px solid #ffd040;
+            box-shadow: 0 0 30px rgba(255, 200, 40, 0.7); transition: transform 0.35s cubic-bezier(.2, 1.6, .4, 1), opacity 0.3s; }
+        #unlock-pop.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        #unlock-pop .t1 { font: bold 0.8rem 'Segoe UI', Arial, sans-serif; letter-spacing: 3px; color: #ffe9a8; }
+        #unlock-pop .t2 { font: italic 900 1.7rem Impact, 'Arial Black', sans-serif; letter-spacing: 2px; color: #ffd040; }
+        #unlock-pop .t3 { font: 0.7rem 'Segoe UI', Arial, sans-serif; color: #dfe3ee; }
+        @media (max-height: 460px) { .menu-row { margin-top: 6px; } }
 
         /* SPEECH BUBBLES (girls speak Japanese, English subtitle) */
         .bubble {
@@ -347,12 +393,16 @@
                 <span class="bar-label">STAM</span>
                 <div class="bar-container"><div class="bar-fill" id="stam-fill"></div></div>
             </div>
-            <div class="relic-row">RELICS <span id="relic-count">0</span>/10</div>
+            <div class="relic-row">STEMS <span id="relic-count">0</span>/10</div>
             <div class="medic-row">MEDICS <span id="medic-count">4</span></div>
+            <div class="poster-row">POSTERS <span id="poster-count">0</span>/2</div>
             <div class="level-row" id="level-name">LV1 ALLEYWAY</div>
         </div>
         <button id="btn-pause" aria-label="Pause menu">&#10073;&#10073; MENU</button>
+        <div id="boss-bar">BOSS: BINO<div class="bb"><div id="boss-fill"></div></div></div>
+        <div id="boss-banner"><div class="title-logo">BOSS: BINO</div><div class="sub">THE GINGER MENACE OF THUNDER BAY</div></div>
         <div id="toast"></div>
+        <div id="unlock-pop"><div class="t1">OUTFIT UNLOCKED</div><div class="t2" id="unlock-name">-</div><div class="t3">Wear it from OUTFITS on the main menu</div></div>
         <div id="hurt-flash"></div>
         <div id="camera-zone"></div>
         <div id="joystick-zone">
@@ -365,13 +415,14 @@
 
     <div id="start-screen" class="overlay">
         <div class="title-logo">RINSED</div>
-        <div class="subtitle">Back Street Relic Run</div>
+        <div class="subtitle">Back Street Stem Run</div>
         <div class="howto">
-            Recover the <b>10 glowing relics</b> on each level &mdash; pick a level below.<br>
-            Thugs with bats roam the back streets &mdash; swing the pipe to put them down.<br>
-            You're bleeding out slowly &mdash; swing by the alley medics to patch up.<br>
-            Go down and a medic will run over and revive you (if one is ready).<br>
-            <b>Left thumb</b> move &bull; <b>Right thumb</b> drag camera &bull; <b>HIT / JUMP / RUN</b>
+            Collect all <b>10 STEMS</b>, then beat <b>BINO</b> &bull; find the <b>2 gold WANTED posters</b> for bonus outfits.<br>
+            Pick a level below &mdash; Thunder Bay awaits.
+        </div>
+        <div class="menu-row">
+            <button id="btn-howto" class="btn-small">HOW TO PLAY</button>
+            <button id="btn-outfits" class="btn-small">OUTFITS: <span id="outfit-cur">CLASSIC AJ</span></button>
         </div>
         <div class="lvl-row">
             <button id="lvl-alley" class="lvl-btn sel">1 &bull; ALLEYWAY</button>
@@ -408,8 +459,34 @@
         <div class="pause-col">
             <button id="btn-resume" class="btn">Resume</button>
             <button id="btn-restart-level" class="btn btn-alt">Restart Level</button>
+            <button id="btn-pause-howto" class="btn btn-alt">How To Play</button>
             <button id="btn-mainmenu" class="btn btn-alt">Main Menu</button>
         </div>
+    </div>
+
+    <div id="howto-screen" class="overlay" style="display:none;">
+        <h2>HOW TO PLAY</h2>
+        <div class="howto-grid">
+            <div class="hd">GOAL</div>
+            <div><span class="ic"><svg width="34" height="12" viewBox="0 0 34 12" aria-label="stem"><rect x="1" y="3" width="25" height="6" rx="3" fill="#f4f2ea"/><ellipse cx="3" cy="6" rx="1.4" ry="2.2" fill="#9a968c"/><rect x="24" y="3" width="8" height="6" rx="2" fill="#1a1614"/><circle cx="32" cy="6" r="1.7" fill="#ff6a20"/></svg></span><span>Collect all <b>10 STEMS</b> (glowing white tubes), then beat the boss <b>BINO</b> to clear the level.</span></div>
+            <div><span class="ic"><svg width="22" height="28" viewBox="0 0 22 28" aria-label="gold poster"><rect x="1" y="1" width="20" height="26" rx="2" fill="#e8d8b0" stroke="#ffd040" stroke-width="2"/><rect x="5" y="4" width="12" height="3" fill="#4a2a1a"/><circle cx="11" cy="14" r="4" fill="#d8a07a"/></svg></span><span>Find the <b>2 hidden gold WANTED posters</b> per level (dead ends, behind tents, on crates) to unlock <b>bonus outfits</b>.</span></div>
+            <div class="hd">STAY ALIVE</div>
+            <div><span class="ic" style="color:#ff4a4a">HP</span><span>Health <b>drains over time</b>. Walk up to a <b>medic girl</b> for <b>+25 HP</b>.</span></div>
+            <div><span class="ic" style="color:#39ff7a">+</span><span>Go down and a ready medic runs over to <b>revive</b> you. <b>MEDICS</b> shows how many can still revive.</span></div>
+            <div><span class="ic" style="color:#ff6a2a">HIT</span><span>Bat-swinging <b>thugs</b> roam the streets &mdash; fight back with <b>HIT</b>.</span></div>
+            <div><span class="ic" style="color:#9fd8ff">&#10052;</span><span><b>Deep Freeze:</b> the cold drains you faster &mdash; stand by <b>fire barrels</b> to warm up. Ice is slippery!</span></div>
+            <div><span class="ic" style="color:#ff7a2a">BOSS</span><span><b>BINO</b> shows up after the 10th stem: dodge his <b>heavy swing</b>, sidestep his <b>charge</b> and <b>JUMP</b> his <b>ground-slam shockwave</b>. Hit him hard while he's <b>staggered</b>. Medics still help.</span></div>
+            <div class="hd">CONTROLS</div>
+            <div><span class="ic">L</span><span><b>Left thumb</b> joystick to move &bull; <b>drag the right side</b> to look around.</span></div>
+            <div><span class="ic">&#9654;</span><span><span class="key">JUMP</span> <span class="key">RUN</span> <span class="key">HIT</span> buttons &bull; <span class="key">MENU</span> to pause.</span></div>
+        </div>
+        <button id="btn-howto-back" class="btn">Got It</button>
+    </div>
+
+    <div id="outfit-screen" class="overlay" style="display:none;">
+        <h2>OUTFITS</h2>
+        <div class="outfit-grid" id="outfit-grid"></div>
+        <button id="btn-outfit-back" class="btn" style="margin-top:10px">Done</button>
     </div>
 
     <div id="rotate-hint">Rotate your phone to landscape</div>
@@ -502,7 +579,12 @@
                     case 'heal': [440, 554, 659, 880].forEach((f, i) => tone('sine', f, f, 0.2, 0.25, i * 0.07)); break;
                     case 'thugdown': tone('sawtooth', 160, 40, 0.5, 0.35); break;
                     case 'win': [523, 659, 784, 1046, 1318].forEach((f, i) => tone('square', f, f, 0.25, 0.22, i * 0.12)); break;
-                    case 'lose': [392, 330, 262, 196].forEach((f, i) => tone('sawtooth', f, f * 0.97, 0.35, 0.25, i * 0.2)); break;
+                    case 'tear': noise(0.28, 0.55, 3200); noise(0.12, 0.35, 1400); tone('sawtooth', 900, 300, 0.12, 0.08); break;
+                    case 'fanfare': [[523, 0], [523, 0.12], [523, 0.24], [659, 0.36], [784, 0.6], [659, 0.78], [784, 0.9], [1046, 1.1]].forEach(([f, t], i) => { tone('square', f, f, i === 7 ? 0.6 : 0.16, 0.22, t); tone('triangle', f / 2, f / 2, i === 7 ? 0.6 : 0.16, 0.18, t); }); break;
+                    case 'boss': [110, 104, 98, 82].forEach((f, i) => tone('sawtooth', f, f * 0.98, 0.42, 0.3, i * 0.32)); noise(0.6, 0.4, 300); break;
+                    case 'slam': tone('sine', 90, 30, 0.5, 0.6); noise(0.35, 0.6, 400); break;
+                    case 'windup': tone('square', 220, 440, 0.3, 0.12); break;
+                    case 'bosshit': tone('square', 120, 50, 0.18, 0.45); noise(0.12, 0.5, 700); break; [392, 330, 262, 196].forEach((f, i) => tone('sawtooth', f, f * 0.97, 0.35, 0.25, i * 0.2)); break;
                 }
             } catch (e) { /* audio is optional */ }
         }
@@ -548,6 +630,7 @@
             n64ifyCharacter(player);
             player.rotation.order = 'YXZ'; // heading applied after tilt (clean fall-over / get-up)
             addBlobShadow(player, 0.6);
+            applyOutfit(isUnlocked(save.outfit) ? save.outfit : 'default');
             dynamicGroup = new THREE.Group();
             scene.add(dynamicGroup);
             createFxSystems();
@@ -1052,6 +1135,548 @@
                 placed.push({ x: sp.x, y: sp.y, z: sp.z, ry: sp.ry, crime: POSTER_CRIMES[order[n]].join(' ') });
             }
             return placed;
+        }
+
+
+        /* --- BONUS: 2 gold collectible WANTED posters per level + unlockable outfits --- */
+        const BONUS_TOTAL = 2;
+        let bonusPosters = [], bonusFound = 0;
+        const OUTFITS = [
+            { id: 'default', name: 'CLASSIC AJ', desc: 'Black tee + board shorts', sw: 'linear-gradient(135deg,#111 50%,#2a5ab8 50%)' },
+            { id: 'mustard', name: 'MUSTARD CRIMES', level: 0, desc: 'Stained tee, hot dog hat, condiment bandolier', sw: 'linear-gradient(135deg,#f2d23a 55%,#b8401e 55%)' },
+            { id: 'legit', name: 'TOO LEGIT', level: 1, desc: 'Gold parachute pants, chain + shades', sw: 'linear-gradient(135deg,#111 40%,#e8b820 40%)' },
+            { id: 'winter', name: 'WINTER WARRIOR', level: 2, desc: 'Parka over board shorts, toque, barefoot', sw: 'linear-gradient(135deg,#b02a2a 50%,#2a5ab8 50%)' }
+        ];
+        const SAVE_KEY = 'rinsed.save.v1';
+        function loadSave() {
+            try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); return { unlocked: Array.isArray(v.unlocked) ? v.unlocked : [], outfit: v.outfit || 'default' }; }
+            catch (e) { return { unlocked: [], outfit: 'default' }; }
+        }
+        function writeSave(sv) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); } catch (e) { /* private mode */ } }
+        let save = loadSave();
+        const isUnlocked = (id) => id === 'default' || save.unlocked.includes(id);
+
+        // gold-framed poster group; facing +z locally
+        function makeBonusPoster(crimeIdx, board) {
+            const g = new THREE.Group();
+            const frameMat = TEX.goldFrame || (TEX.goldFrame = new THREE.MeshBasicMaterial({ color: 0xffc830 }));
+            const frame = new THREE.Mesh(GEO.bonusFrame || (GEO.bonusFrame = new THREE.PlaneGeometry(1.32, 1.88)), frameMat);
+            frame.position.z = -0.01; g.add(frame);
+            const p = new THREE.Mesh(GEO.poster || (GEO.poster = new THREE.PlaneGeometry(1.1, 1.65)), posterMaterial(crimeIdx));
+            g.add(p);
+            if (board) { // freestanding: wooden backing board + two posts
+                const wood = TEX.wood || phong({ color: 0x6a4a2a });
+                const bk = new THREE.Mesh(GEO.bonusBoard || (GEO.bonusBoard = new THREE.BoxGeometry(1.45, 2.0, 0.08)), wood); bk.position.z = -0.06; g.add(bk);
+                for (const sx of [-0.6, 0.6]) { const post = new THREE.Mesh(GEO.bonusPost || (GEO.bonusPost = new THREE.BoxGeometry(0.1, 1.3, 0.1)), wood); post.position.set(sx, -1.55, -0.06); g.add(post); }
+            }
+            const glow = new THREE.Sprite(TEX.bonusGlow || (TEX.bonusGlow = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffc040, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })));
+            glow.scale.set(3.2, 3.6, 1); glow.position.z = 0.15; g.add(glow);
+            const N = 14, sp = new Float32Array(N * 3);
+            const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+            const spark = new THREE.Points(sg, TEX.bonusSpark || (TEX.bonusSpark = new THREE.PointsMaterial({ map: TEX.glow, color: 0xfff0a0, size: 0.32, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
+            spark.frustumCulled = false; g.add(spark);
+            g.traverse(o => { o.userData.sharedGeo = true; });
+            sg.userData.own = true; spark.userData.sharedGeo = false; // per-poster sparkle buffer gets disposed with the map
+            g.userData = { glow, spark, frame };
+            return g;
+        }
+        // pick 2 hard-to-reach but always-reachable spots: a dead-end back wall (or a spot behind the tents) and the top of a crate stack
+        function placeBonusPosters(ctx) {
+            const { openCells, isOpen, water, avoid, LV } = ctx;
+            bonusPosters = [];
+            const crimes = [[0, 2], [1, 3], [6, 4]][currentLevel] || [0, 1];
+            const used = [];
+            const farFrom = (c, d) => used.every(u => Math.hypot(u.x - c.x, u.z - c.z) >= d) && avoid.every(a => Math.hypot(a.x - c.x, a.z - c.z) >= 3);
+            const cells = openCells.filter(c => c.d >= 14 && !c.bridge).sort((a, b) => b.d - a.d + (srand() - 0.5) * 12);
+            const add = (g, x, y, z, ry, top, cell) => {
+                g.position.set(x, y, z); g.rotation.y = ry; cityGroup.add(g);
+                bonusPosters.push({ g, x, y, z, top, taken: false, t: 0, phase: srand() * 6 });
+                used.push(cell);
+            };
+            const crimeOf = () => crimes[bonusPosters.length];
+            // 1) dead-end back wall
+            for (const c of cells.filter(c => c.n === 1)) {
+                if (bonusPosters.length >= 1) break;
+                if (!farFrom(c, 0)) continue;
+                const dir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([a, b]) => isOpen(c.i + a, c.j + b));
+                const bx = -dir[0], bz = -dir[1];
+                if (isOpen(c.i + bx, c.j + bz) || water[(c.i + bx) * GN + c.j + bz]) continue;
+                const x = c.x + bx * (CELL / 2 - 0.09), z = c.z + bz * (CELL / 2 - 0.09);
+                if (pointInWalls(x - bx * 0.7, 1.2, z - bz * 0.7, 0.2)) continue;
+                add(makeBonusPoster(crimeOf(), false), x, 1.75, z, Math.atan2(-bx, -bz), false, c);
+            }
+            // 2) top of a climbable crate stack in a cell corner
+            const crateB = new Batch();
+            for (const c of cells) {
+                if (bonusPosters.length >= 2 || (bonusPosters.length === 1 && used.length && !farFrom(c, 16))) { if (bonusPosters.length >= 2) break; else continue; }
+                let done = false;
+                for (const [qx, qz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]].sort(() => srand() - 0.5)) {
+                    for (const alongX of [true, false]) {
+                        const t = [c.x + qx * 2.35, c.z + qz * 2.35];
+                        const st = alongX ? [c.x + qx * 1.35, c.z + qz * 2.35] : [c.x + qx * 2.35, c.z + qz * 1.35];
+                        if (pointInWalls(t[0], 1, t[1], 0.6) || pointInWalls(st[0], 0.5, st[1], 0.6)) continue;
+                        crateB.box(1.0, 2.0, 1.0, t[0], 1.0, t[1]); crateB.box(1.0, 1.0, 1.0, st[0], 0.5, st[1]);
+                        addWall(t[0] - 0.5, t[0] + 0.5, t[1] - 0.5, t[1] + 0.5, 2.0); addWall(st[0] - 0.5, st[0] + 0.5, st[1] - 0.5, st[1] + 0.5, 1.0);
+                        const g = makeBonusPoster(crimeOf(), true); g.scale.setScalar(0.75);
+                        add(g, t[0] + qx * 0.3, 2.0 + 1.52 * 0.75 + 0.1, t[1] + qz * 0.3, Math.atan2(-qx, -qz), true, c);
+                        bonusPosters[bonusPosters.length - 1].stand = t;
+                        done = true; break;
+                    }
+                    if (done) break;
+                }
+            }
+            crateB.build(TEX.wood, cityGroup);
+            // fallback (very cramped maps): freestanding board in a far cell corner, behind the clutter
+            for (const c of cells) {
+                if (bonusPosters.length >= BONUS_TOTAL) break;
+                if (!farFrom(c, 10)) continue;
+                for (const [qx, qz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+                    const x = c.x + qx * 2.2, z = c.z + qz * 2.2;
+                    if (pointInWalls(x, 1, z, 0.75)) continue;
+                    add(makeBonusPoster(crimeOf(), true), x, 2.05, z, Math.atan2(-qx, -qz), false, c);
+                    addWall(x - 0.45, x + 0.45, z - 0.45, z + 0.45, 2.6);
+                    break;
+                }
+            }
+        }
+        function updateBonusPosters(dt) {
+            const p = player.position;
+            for (const b of bonusPosters) {
+                const ud = b.g.userData;
+                if (b.taken) {
+                    if (!b.g.visible) continue;
+                    b.t += dt;
+                    const k = Math.min(1, b.t / 0.7);
+                    b.g.rotation.z = k * 1.6; b.g.rotation.x = -k * 0.9;
+                    b.g.position.set(b.x + (p.x - b.x) * k * 0.7, b.y + Math.sin(k * Math.PI) * 0.8 + k * 0.3, b.z + (p.z - b.z) * k * 0.7);
+                    b.g.scale.setScalar((b.top ? 0.75 : 1) * (1 - k * 0.85));
+                    ud.glow.material = ud.glow.material; // shared
+                    if (k >= 1) b.g.visible = false;
+                    continue;
+                }
+                const pulse = 0.75 + Math.sin(elapsed * 4 + b.phase) * 0.25;
+                ud.glow.scale.set(3.0 * pulse + 0.3, 3.4 * pulse + 0.3, 1);
+                const arr = ud.spark.geometry.attributes.position.array;
+                for (let i = 0; i < arr.length / 3; i++) {
+                    const a = elapsed * 0.9 + i * 0.449 + b.phase, per = (i % 2 ? 1 : -1);
+                    const tt = ((elapsed * 0.25 + i / 14) % 1) * 4; // walk around the frame edge
+                    let x, y;
+                    if (tt < 1) { x = -0.66 + tt * 1.32; y = 0.94; } else if (tt < 2) { x = 0.66; y = 0.94 - (tt - 1) * 1.88; } else if (tt < 3) { x = 0.66 - (tt - 2) * 1.32; y = -0.94; } else { x = -0.66; y = -0.94 + (tt - 3) * 1.88; }
+                    arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = 0.05 + Math.sin(a) * 0.04 * per;
+                }
+                ud.spark.geometry.attributes.position.needsUpdate = true;
+                if (gameState !== 'playing' || downed) continue;
+                const dx = b.x - p.x, dz = b.z - p.z;
+                const near = b.top ? (Math.hypot(b.stand[0] - p.x, b.stand[1] - p.z) < 1.1 && p.y > 1.5) : (dx * dx + dz * dz < 1.7 * 1.7);
+                if (near) collectBonus(b);
+            }
+        }
+        function collectBonus(b) {
+            b.taken = true; b.t = 0; bonusFound++;
+            playSound('tear');
+            spawnNumber('+POSTER', new THREE.Vector3(b.x, b.y, b.z), 'gold');
+            showToast(`WANTED POSTER ${bonusFound}/${BONUS_TOTAL}`, '#ffd040');
+            $('poster-count').textContent = bonusFound;
+            if (bonusFound >= BONUS_TOTAL) {
+                const of = OUTFITS.find(o => o.level === currentLevel);
+                if (!of) return;
+                if (!save.unlocked.includes(of.id)) {
+                    save.unlocked.push(of.id); writeSave(save);
+                    setTimeout(() => showUnlock(of), 700);
+                } else setTimeout(() => showToast(`ALL POSTERS FOUND - ${of.name} ALREADY UNLOCKED`, '#ffd040'), 900);
+            }
+        }
+        let unlockTimer = null;
+        function showUnlock(of) {
+            $('unlock-name').textContent = of.name;
+            $('unlock-pop').classList.add('show');
+            playSound('fanfare');
+            clearTimeout(unlockTimer);
+            unlockTimer = setTimeout(() => $('unlock-pop').classList.remove('show'), 3200);
+        }
+
+        // ---- outfits: material swaps + accessory meshes on AJ ----
+        function outfitKit() {
+            if (TEX.outfits) return TEX.outfits;
+            const P = (o) => phong(o);
+            const mustardTee = (front) => pixTex(32, 32, (g) => {
+                px(g, 0, 0, '#f0cc30', 32, 32);
+                for (let i = 0; i < 40; i++) px(g, (i * 13) % 32, (i * 7) % 32, '#e2bc22', 2, 1);
+                for (let i = 0; i < 9; i++) { const x = (i * 11 + 3) % 28, y = (i * 17 + 5) % 28; px(g, x, y, '#c89a10', 3, 2); px(g, x + 1, y + 2, '#b8860a', 2, 2); px(g, x + 2, y - 1, '#d8a818', 1, 1); }
+                for (let i = 0; i < 4; i++) px(g, (i * 9 + 6) % 30, (i * 13 + 9) % 30, '#a83020', 2, 2); // ketchup drips too
+                if (front) { g.fillStyle = '#7a3a10'; g.font = 'bold 6px Impact, Arial, sans-serif'; g.textAlign = 'center'; g.fillText('MUSTARD', 16, 15); g.fillText('CRIMES', 16, 22); }
+            }, true);
+            const goldPants = pixTex(32, 32, (g) => {
+                px(g, 0, 0, '#d8a820', 32, 32);
+                for (let y = 0; y < 32; y += 4) px(g, 0, y, '#b88a10', 32, 1);          // parachute folds
+                for (let x = 2; x < 32; x += 7) px(g, x, 0, '#f4d460', 1, 32);
+            }, true);
+            const parka = (front) => pixTex(32, 32, (g) => {
+                px(g, 0, 0, '#b02a2a', 32, 32);
+                for (let y = 3; y < 32; y += 6) px(g, 0, y, '#7a1a1a', 32, 1);           // quilted puffy seams
+                for (let i = 0; i < 30; i++) px(g, (i * 13) % 32, (i * 5) % 32, '#c03636', 2, 1);
+                if (front) { px(g, 15, 0, '#2a2a2a', 2, 32); px(g, 5, 18, '#7a1a1a', 7, 5); px(g, 20, 18, '#7a1a1a', 7, 5); }
+            }, true);
+            const O = {
+                mustard: { shirt: P({ map: mustardTee(false) }), shirtFront: P({ map: mustardTee(true) }), sleeveEmblem: P({ map: mustardTee(false) }) },
+                legit: { shorts: P({ map: goldPants, specular: 0xfff0a0, shininess: 70, emissive: 0x2a1c00 }), shortsFront: P({ map: goldPants, specular: 0xfff0a0, shininess: 70, emissive: 0x2a1c00 }) },
+                winter: { shirt: P({ map: parka(false) }), shirtFront: P({ map: parka(true) }), sleeveEmblem: P({ map: parka(false) }) },
+                mats: {
+                    bun: P({ color: 0xd89a50 }), dog: P({ color: 0xa8402a, specular: 0x553322, shininess: 40 }), mustard: P({ color: 0xffd020, emissive: 0x332200 }),
+                    ketchup: P({ color: 0xc8201a, specular: 0x664444, shininess: 60 }), strap: P({ color: 0x4a3020 }), cap: P({ color: 0xeeeeee }),
+                    gold: P({ color: 0xffc830, specular: 0xffffff, shininess: 120, emissive: 0x3a2800 }), shades: P({ color: 0x080808, specular: 0xaabbff, shininess: 140 }),
+                    parka: P({ map: parka(false) }), parkaFront: P({ map: parka(true) }), fur: P({ color: 0xe8e0d0 }), toque: P({ color: 0x1e3a7a }), white: P({ color: 0xf2f2f2 })
+                }
+            };
+            O.legit.pants = O.legit.shorts;
+            return (TEX.outfits = O);
+        }
+        function applyOutfit(id) {
+            if (!player || !TEX.aj) return;
+            const K = outfitKit(), ov = K[id] || {}, mm = K.mats;
+            (player.userData.outfitBits || []).forEach(b => b.parent && b.parent.remove(b));
+            const bits = player.userData.outfitBits = [];
+            const keyOf = new Map(Object.entries(TEX.aj).map(([k, v]) => [v, k]));
+            player.traverse(m => {
+                if (!m.isMesh || m === pipeWeapon || m.parent === pipeWeapon) return;
+                if (m.userData.baseMat === undefined) m.userData.baseMat = m.material;
+                const sw = (mat) => { const k = keyOf.get(mat); return (k && ov[k]) || mat; };
+                m.material = Array.isArray(m.userData.baseMat) ? m.userData.baseMat.map(sw) : sw(m.userData.baseMat);
+            });
+            const P = player.userData.parts;
+            const add = (geo, mat, x, y, z, parent, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => {
+                const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz);
+                (parent || player).add(m); bits.push(m); return m;
+            };
+            const G = (k, f) => GEO[k] || (GEO[k] = f());
+            const hideCap = (v) => player.children.forEach(c => { if (c.geometry === GEO.ajCap) c.visible = v; });
+            hideCap(true);
+            if (id === 'mustard') {
+                // hot dog hat
+                add(G('o_bun', () => capsuleGeo(0.12, 0.34, 0.12, 12)), mm.bun, 0, 2.38, 0.0, null, 0, 0, Math.PI / 2, 1, 1, 1.25);
+                add(G('o_dog', () => capsuleGeo(0.065, 0.5, 0.065, 10)), mm.dog, 0, 2.47, 0.0, null, 0, 0, Math.PI / 2);
+                for (let k = 0; k < 6; k++) add(G('o_zig', () => new THREE.BoxGeometry(0.1, 0.025, 0.03)), mm.mustard, -0.22 + k * 0.09, 2.535, 0, null, 0, (k % 2 ? 0.6 : -0.6));
+                // condiment bandolier across the chest
+                add(G('o_strap', () => new THREE.BoxGeometry(0.12, 1.02, 0.05)), mm.strap, 0, 1.4, 0.3, null, 0, 0, 0.72);
+                add(G('o_strapB', () => new THREE.BoxGeometry(0.12, 1.02, 0.05)), mm.strap, 0, 1.4, -0.27, null, 0, 0, -0.72);
+                for (let k = 0; k < 4; k++) {
+                    const t = -0.3 + k * 0.2, x = Math.sin(0.72) * -t * 1.0, y = 1.4 + Math.cos(0.72) * t;
+                    add(G('o_bottle', () => new THREE.CylinderGeometry(0.045, 0.05, 0.16, 8)), k % 2 ? mm.mustard : mm.ketchup, x, y, 0.34);
+                    add(G('o_bcap', () => new THREE.ConeGeometry(0.03, 0.06, 8)), mm.cap, x, y + 0.11, 0.34);
+                }
+            } else if (id === 'legit') {
+                for (const leg of [P.legL, P.legR]) {
+                    add(G('o_pant', () => { const g = capsuleGeo(0.165, 0.38, 0.17, 12).clone(); return g; }), K.legit.pants, 0, -0.46, 0, leg);
+                    add(G('o_cuff', () => new THREE.CylinderGeometry(0.11, 0.12, 0.08, 12)), K.legit.pants, 0, -0.76, 0, leg);
+                }
+                add(G('o_chain', () => new THREE.TorusGeometry(0.21, 0.022, 6, 22)), mm.gold, 0, 1.6, 0.14, null, 1.15);
+                add(G('o_medal', () => new THREE.CylinderGeometry(0.075, 0.075, 0.025, 14)), mm.gold, 0, 1.42, 0.3, null, Math.PI / 2 - 0.25);
+                add(G('o_shades', () => rboxGeo(0.44, 0.09, 0.05, 0.02)), mm.shades, 0, 2.115, 0.225);
+                add(G('o_shadeArm', () => new THREE.BoxGeometry(0.02, 0.03, 0.3)), mm.shades, 0.215, 2.12, 0.08);
+                add(G('o_shadeArm', () => new THREE.BoxGeometry(0.02, 0.03, 0.3)), mm.shades, -0.215, 2.12, 0.08);
+            } else if (id === 'winter') {
+                add(G('o_parka', () => rboxGeo(0.96, 0.8, 0.64, 0.26)), [mm.parka, mm.parka, mm.parka, mm.parka, mm.parkaFront, mm.parka], 0, 1.38, 0.02);
+                add(G('o_hem', () => rboxGeo(0.98, 0.14, 0.66, 0.06)), mm.parka, 0, 1.0, 0.02);
+                add(G('o_fur', () => new THREE.TorusGeometry(0.2, 0.08, 8, 18)), mm.fur, 0, 1.8, 0, null, Math.PI / 2);
+                for (const arm of [P.armL, P.armR]) {
+                    add(G('o_sleeve', () => capsuleGeo(0.15, 0.32, 0.17, 12)), mm.parka, 0, -0.38, 0.01, arm);
+                    add(G('o_cuffW', () => new THREE.TorusGeometry(0.12, 0.04, 6, 14)), mm.fur, 0, -0.7, 0.01, arm, Math.PI / 2);
+                }
+                hideCap(false);
+                add(G('o_toque', () => new THREE.SphereGeometry(0.255, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.52)), mm.toque, 0, 2.15, 0.0, null, 0, 0, 0, 1, 0.9, 1);
+                add(G('o_band', () => new THREE.TorusGeometry(0.235, 0.045, 6, 18)), mm.white, 0, 2.16, 0, null, Math.PI / 2);
+                add(G('o_pom', () => new THREE.SphereGeometry(0.085, 10, 8)), mm.white, 0, 2.41, 0);
+            }
+            bits.forEach(b => { b.userData.outfit = true; });
+            const of = OUTFITS.find(o => o.id === id);
+            if ($('outfit-cur')) $('outfit-cur').textContent = of ? of.name : 'CLASSIC AJ';
+        }
+        function renderOutfitGrid() {
+            $('outfit-grid').innerHTML = '';
+            OUTFITS.forEach(o => {
+                const un = isUnlocked(o.id);
+                const d = document.createElement('button');
+                d.className = 'outfit-card' + (un ? '' : ' locked') + (save.outfit === o.id ? ' sel' : '');
+                d.dataset.id = o.id;
+                d.innerHTML = `<span class="sw" style="background:${o.sw}"></span><span><div class="nm">${o.name}</div><div>${o.desc}</div>` +
+                    `<div class="st">${un ? (save.outfit === o.id ? 'WEARING' : 'UNLOCKED - TAP TO WEAR') : 'LOCKED: find both gold posters in ' + LEVELS[o.level].name}</div></span>`;
+                d.addEventListener('click', () => {
+                    if (!isUnlocked(o.id)) { showToast('LOCKED - FIND BOTH GOLD POSTERS IN ' + LEVELS[o.level].name, '#ff7a7a'); return; }
+                    save.outfit = o.id; writeSave(save); applyOutfit(o.id); renderOutfitGrid();
+                });
+                $('outfit-grid').appendChild(d);
+            });
+        }
+        let outfitPreview = false, howtoReturn = null;
+        function openOutfits() {
+            outfitPreview = true;
+            $('start-screen').style.display = 'none';
+            renderOutfitGrid();
+            $('outfit-screen').style.display = 'flex';
+            const w = renderer.domElement.width, h = renderer.domElement.height;
+            camera.setViewOffset(w, h, -Math.round(w * 0.22), 0, w, h);
+        }
+        function closeOutfits() {
+            outfitPreview = false; camera.clearViewOffset();
+            $('outfit-screen').style.display = 'none';
+            $('start-screen').style.display = 'flex';
+        }
+        function openHowto(from) {
+            howtoReturn = from; $(from).style.display = 'none';
+            $('howto-screen').style.display = 'flex';
+        }
+        function closeHowto() {
+            $('howto-screen').style.display = 'none';
+            if (howtoReturn) $(howtoReturn).style.display = 'flex';
+        }
+
+
+        /* --- BOSS: BINO (appears after the 10th stem) --- */
+        let boss = null, bossDoneT = -1;
+        const BOSS_HP = 320;
+        function binoFace() {
+            if (TEX.binoFace) return TEX.binoFace;
+            const SK = '#f2c4a2', GIN = '#c4561c', GIN2 = '#a8441a';
+            const face = pixTex(32, 32, (g) => {
+                px(g, 0, 0, SK, 32, 32);
+                for (let i = 0; i < 40; i++) px(g, (i * 7) % 32, (i * 11) % 12, 'rgba(200,120,80,0.25)', 1, 1); // freckles / stubble on the shaved head
+                px(g, 6, 11, GIN, 7, 2); px(g, 19, 11, GIN, 7, 2);                 // bushy ginger brows (angry)
+                px(g, 6, 10, GIN, 3, 1); px(g, 23, 10, GIN, 3, 1);
+                px(g, 8, 14, '#ffffff', 4, 3); px(g, 20, 14, '#ffffff', 4, 3); px(g, 9, 14, '#2a5a8a', 2, 3); px(g, 21, 14, '#2a5a8a', 2, 3);
+                px(g, 14, 15, '#e0a080', 4, 5);                                     // nose
+                px(g, 2, 19, GIN, 28, 13); for (let i = 0; i < 70; i++) px(g, 2 + (i * 13) % 28, 19 + (i * 7) % 13, i % 2 ? GIN2 : '#d8682a', 1, 2); // full beard
+                px(g, 9, 20, GIN2, 14, 2);                                          // moustache
+                px(g, 12, 24, '#5a1a10', 8, 2); px(g, 13, 24, '#f0f0e0', 6, 1);     // snarl
+            });
+            const side = pixTex(32, 32, (g) => { px(g, 0, 0, SK, 32, 32); px(g, 0, 19, GIN, 32, 13); for (let i = 0; i < 40; i++) px(g, (i * 13) % 32, 19 + (i * 7) % 13, GIN2, 1, 2); px(g, 12, 12, '#e0a888', 5, 6); });
+            const top = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); for (let i = 0; i < 30; i++) px(g, (i * 5) % 16, (i * 3) % 16, 'rgba(190,110,70,0.35)', 1, 1); });
+            const L = (map) => phong({ map, shininess: 30, specular: 0x332222 });
+            return (TEX.binoFace = { face: L(face), side: L(side), top: L(top), skin: phong({ color: 0xf2c4a2 }), beard: phong({ color: 0xc4561c }), shirt: phong({ color: 0x3a4a2a }), jeans: phong({ color: 0x2a3446 }), boot: phong({ color: 0x3a2a1a }), metal: phong({ color: 0x4a4e56, specular: 0x999999, shininess: 60 }), wood: phong({ color: 0x8a6a3a }), belt: phong({ color: 0x1a1410 }) });
+        }
+        function makeBino(x, z) {
+            const T = binoFace(), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+            const M = (geo, mat, px_, py, pz, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(px_, py, pz); (parent || body).add(m); return m; };
+            const legs = [];
+            for (const s of [-1, 1]) {
+                const hip = new THREE.Group(); hip.position.set(0.24 * s, 0.9, 0); body.add(hip);
+                M(capsuleGeo(0.17, 0.48, 0.19, 12), T.jeans, 0, -0.38, 0, hip);
+                M(rboxGeo(0.32, 0.2, 0.44, 0.08), T.boot, 0, -0.78, 0.06, hip);
+                legs.push(hip);
+            }
+            M(rboxGeo(1.02, 0.3, 0.64, 0.14), T.jeans, 0, 0.98, 0);
+            M(rboxGeo(1.04, 0.08, 0.66, 0.03), T.belt, 0, 1.1, 0);
+            M(rboxGeo(1.14, 0.92, 0.72, 0.32), T.shirt, 0, 1.55, 0.02);              // stocky barrel chest
+            const belly = M(new THREE.SphereGeometry(0.42, 14, 10), T.shirt, 0, 1.36, 0.16); belly.scale.set(1.15, 0.9, 0.8);
+            M(capsuleGeo(0.16, 0.08, 0.16, 10), T.skin, 0, 2.06, 0);                 // thick neck
+            const head = M(rboxGeo(0.52, 0.56, 0.5, 0.2), [T.side, T.side, T.top, T.skin, T.face, T.side], 0, 2.38, 0.02);
+            const dome = M(new THREE.SphereGeometry(0.27, 16, 6, 0, Math.PI * 2, 0, Math.PI * 0.4), T.top, 0, 2.5, 0.02); dome.scale.set(0.98, 0.7, 0.94);
+            const beard = M(new THREE.SphereGeometry(0.3, 14, 10), T.beard, 0, 2.17, 0.16); beard.scale.set(0.92, 0.72, 0.62); // full ginger beard
+            for (const s of [-1, 1]) M(new THREE.SphereGeometry(0.07, 8, 6), T.skin, 0.27 * s, 2.38, 0.0);
+            const arms = [];
+            const tat = (TEX.aj && TEX.aj.tattooArm) || T.skin;
+            for (const s of [-1, 1]) {
+                const sh = new THREE.Group(); sh.position.set(0.66 * s, 1.9, 0); body.add(sh);
+                M(new THREE.SphereGeometry(0.22, 12, 10), T.shirt, 0, -0.06, 0, sh);
+                M(capsuleGeo(0.15, 0.56, 0.17, 12), tat, 0, -0.5, 0, sh);
+                M(new THREE.SphereGeometry(0.17, 12, 10), T.skin, 0, -0.94, 0.02, sh);   // big fists
+                arms.push(sh);
+            }
+            // sledgehammer in his right hand
+            const sledge = new THREE.Group(); sledge.position.set(0, -0.94, 0.05); arms[0].add(sledge);
+            M(new THREE.CylinderGeometry(0.045, 0.05, 1.5, 10), T.wood, 0, 0, 0.55, sledge).rotation.x = Math.PI / 2;
+            M(rboxGeo(0.3, 0.3, 0.55, 0.06), T.metal, 0, 0, 1.28, sledge).rotation.y = Math.PI / 2;
+            // telegraph ring on the ground (red) + shockwave ring
+            const tele = new THREE.Mesh(GEO.bossTele || (GEO.bossTele = new THREE.RingGeometry(0.85, 1, 40)), new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+            tele.rotation.x = -Math.PI / 2; tele.position.y = 0.06; g.add(tele);
+            const wave = new THREE.Mesh(GEO.bossWave || (GEO.bossWave = new THREE.RingGeometry(0.9, 1, 48)), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+            wave.rotation.x = -Math.PI / 2; wave.position.y = 0.08; dynamicGroup.add(wave);
+            const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Array(15).fill(0), 3)), new THREE.PointsMaterial({ map: TEX.glow, color: 0xfff060, size: 0.45, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+            stars.visible = false; g.add(stars);
+            g.scale.setScalar(1.25);
+            addBlobShadow(g, 0.75);
+            g.position.set(x, 0, z);
+            dynamicGroup.add(g);
+            return { mesh: g, body, legs, arms, sledge, tele, wave, stars, hp: BOSS_HP, maxHp: BOSS_HP, state: 'intro', t: 0, cd: 1.5, dir: new THREE.Vector3(), path: [], pathT: 0,
+                     waveR: -1, waveHit: false, calledBackup: false, dead: false, deadT: 0, walk: 0, seen: {}, kb: new THREE.Vector3(), flash: 0 };
+        }
+        function startBoss() {
+            if (boss) return;
+            // spawn BINO in an open cell 9-18m away that AJ can walk to
+            const p = player.position;
+            const cells = (mapInfo.cells || []).filter(([x, z]) => { const d = Math.hypot(x - p.x, z - p.z); return d > 9 && d < 18 && !pointInWalls(x, 1, z, 0.9); });
+            cells.sort((a, b) => Math.hypot(a[0] - p.x - 0, a[1] - p.z) - Math.hypot(b[0] - p.x, b[1] - p.z));
+            let spot = cells.find(([x, z]) => findPath(p.x, p.z, x, z).length >= 1) || [p.x + 8, p.z];
+            boss = makeBino(spot[0], spot[1]);
+            boss.mesh.rotation.y = Math.atan2(p.x - spot[0], p.z - spot[1]);
+            thugs.forEach(t => { if (!t.dead) t.state = 'wander'; });
+            $('boss-banner').classList.remove('on'); void $('boss-banner').offsetWidth; $('boss-banner').classList.add('on');
+            $('boss-bar').style.display = 'block'; $('boss-fill').style.width = '100%';
+            showToast("10/10 STEMS! BINO WANTS 'EM BACK", '#ff9a4a');
+            playSound('boss');
+            $('game-container').classList.remove('shake'); void $('game-container').offsetWidth; $('game-container').classList.add('shake');
+        }
+        function clearBoss() {
+            boss = null; bossDoneT = -1;
+            $('boss-bar').style.display = 'none'; $('boss-banner').classList.remove('on');
+        }
+        function bossTelegraph(b, on, r) {
+            b.tele.material.opacity = on ? 0.35 + Math.sin(elapsed * 22) * 0.25 : 0;
+            if (r) b.tele.scale.setScalar(r / 1.25);
+        }
+        function bossStagger(b, dur, text) {
+            b.state = 'stagger'; b.t = dur; b.stars.visible = true; bossTelegraph(b, false);
+            if (text) spawnNumber(text, _v1.set(b.mesh.position.x, 3.4, b.mesh.position.z), 'gold');
+        }
+        function damageBoss(dmg, nx, nz) {
+            const b = boss;
+            if (!b || b.dead || b.state === 'intro') return false;
+            const st = b.state === 'stagger';
+            dmg = Math.round(dmg * (st ? 1.4 : 0.6));          // armoured unless staggered
+            b.hp -= dmg; b.flash = 0.12;
+            if (st) b.kb.set(nx * 3, 0, nz * 3);
+            spawnNumber(String(dmg), _v1.set(b.mesh.position.x, 3.2, b.mesh.position.z), st ? 'gold' : '');
+            playSound('bosshit');
+            $('boss-fill').style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
+            if (!b.calledBackup && b.hp <= b.maxHp / 2) {
+                b.calledBackup = true;
+                showToast('BINO CALLS FOR BACKUP!', '#ff9a4a');
+                for (const s of [-1, 1]) {
+                    const a = b.mesh.rotation.y + s * 1.2, x = b.mesh.position.x + Math.sin(a) * 2.2, z = b.mesh.position.z + Math.cos(a) * 2.2;
+                    const t = makeThug(pointInWalls(x, 1, z, 0.5) ? b.mesh.position.x : x, pointInWalls(x, 1, z, 0.5) ? b.mesh.position.z : z, 4 + thugs.length);
+                    t.state = 'chase'; thugs.push(t);
+                }
+            }
+            if (b.hp <= 0) {
+                b.hp = 0; b.dead = true; b.deadT = 0; b.state = 'dead'; bossTelegraph(b, false); b.stars.visible = false;
+                playSound('thugdown'); playSound('win');
+                showToast('BINO IS DOWN!', '#ffcc00');
+                thugs.forEach(t => { if (!t.dead) { t.hp = 0; t.dead = true; t.deadT = 0; t.hpGroup.visible = false; } });
+                bossDoneT = 2.0;
+            }
+            return true;
+        }
+        function updateBoss(dt) {
+            const b = boss;
+            if (!b) return;
+            const m = b.mesh, p = player.position;
+            const dx = p.x - m.position.x, dz = p.z - m.position.z, dist = Math.hypot(dx, dz) || 0.001;
+            const face = (rate) => { let d = Math.atan2(dx, dz) - m.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.rotation.y += d * Math.min(1, dt * rate); };
+            const A = b.arms, L = b.legs;
+            if (b.flash > 0) { b.flash -= dt; m.position.y = 0.05; } else m.position.y = 0;
+            // shockwave ring travels independently
+            if (b.waveR >= 0) {
+                b.waveR += dt * 9;
+                b.wave.scale.setScalar(b.waveR); b.wave.material.opacity = Math.max(0, 0.9 - b.waveR / 9);
+                const wd = Math.hypot(p.x - b.wave.position.x, p.z - b.wave.position.z);
+                if (!b.waveHit && Math.abs(wd - b.waveR) < 0.7 && p.y < 0.35 && !downed) { b.waveHit = true; damagePlayer(16, b.wave.position); }
+                if (b.waveR > 9) { b.waveR = -1; b.wave.material.opacity = 0; }
+            }
+            if (b.dead) {
+                b.deadT += dt;
+                b.body.rotation.x = Math.max(-Math.PI / 2, -b.deadT * 2.5);
+                if (bossDoneT > 0) { bossDoneT -= dt; if (bossDoneT <= 0 && gameState === 'playing') { $('boss-bar').style.display = 'none'; winGame(); } }
+                return;
+            }
+            if (b.kb.lengthSq() > 0.01) { m.position.x += b.kb.x * dt; m.position.z += b.kb.z * dt; b.kb.multiplyScalar(Math.pow(0.01, dt)); }
+            const passive = downed || thugGrace > 0;
+            let speed = 0, mx = 0, mz = 0;
+            b.seen[b.state] = (b.seen[b.state] || 0) + dt;
+            const resetPose = (k) => { A.forEach(a => a.rotation.x += (0 - a.rotation.x) * Math.min(1, dt * k)); A[0].rotation.z += (0 - A[0].rotation.z) * Math.min(1, dt * k); b.body.rotation.x += (0 - b.body.rotation.x) * Math.min(1, dt * k); };
+            switch (b.state) {
+                case 'intro':
+                    b.t += dt; face(4);
+                    A[0].rotation.x = -2.6 + Math.sin(b.t * 6) * 0.2; A[1].rotation.x = -2.4 - Math.sin(b.t * 6) * 0.2; // roars, arms up
+                    if (b.t > 2.2) { b.state = 'chase'; b.t = 0; b.cd = 0.8; }
+                    break;
+                case 'chase': {
+                    resetPose(6); bossTelegraph(b, false);
+                    if (passive) { // AJ is down: BINO gloats and backs off a little
+                        if (dist < 7) { mx = -dx / dist; mz = -dz / dist; speed = 1.4; } face(3); break;
+                    }
+                    b.cd -= dt;
+                    b.pathT -= dt;
+                    if (b.pathT <= 0) { b.path = losClear(m.position.x, m.position.z, p.x, p.z) ? [] : findPath(m.position.x, m.position.z, p.x, p.z); b.pathT = 0.8; }
+                    let tx = p.x, tz = p.z;
+                    while (b.path.length && Math.hypot(b.path[0].x - m.position.x, b.path[0].z - m.position.z) < 0.8) b.path.shift();
+                    if (b.path.length) { tx = b.path[0].x; tz = b.path[0].z; }
+                    const ex = tx - m.position.x, ez = tz - m.position.z, ed = Math.hypot(ex, ez) || 1;
+                    if (dist > 2.4) { mx = ex / ed; mz = ez / ed; speed = 2.7; }
+                    face(5);
+                    if (b.cd <= 0 && Math.abs(p.y - m.position.y) < 3) {
+                        const los = losClear(m.position.x, m.position.z, p.x, p.z);
+                        const r = Math.random();
+                        if (dist < 3.2 && r < 0.6) { b.state = 'swing'; b.t = 0; playSound('windup'); }
+                        else if (dist < 7.5 && r < 0.85) { b.state = 'slam'; b.t = 0; playSound('windup'); }
+                        else if (los && dist > 3.5 && dist < 13) { b.state = 'charge'; b.t = 0; b.dir.set(dx / dist, 0, dz / dist); playSound('windup'); }
+                        else if (dist < 3.2) { b.state = 'swing'; b.t = 0; playSound('windup'); }
+                        else b.cd = 0.4;
+                    }
+                    break;
+                }
+                case 'swing': { // heavy sledge swing: 0.85s wind-up (raised, red ring), then a wide arc
+                    b.t += dt;
+                    if (b.t < 0.85) { face(4); A[0].rotation.x = -2.8 * Math.min(1, b.t / 0.5); bossTelegraph(b, true, 3.4); }
+                    else if (b.t < 1.05) {
+                        A[0].rotation.x = -2.8 + (b.t - 0.85) / 0.2 * 4.0; bossTelegraph(b, false);
+                        if (!b.hitDone) {
+                            b.hitDone = true;
+                            const fx = Math.sin(m.rotation.y), fz = Math.cos(m.rotation.y), dot = (dx * fx + dz * fz) / dist;
+                            if (dist < 3.6 && dot > 0.2 && p.y < 1.6) { damagePlayer(22, m.position); player.position.x += dx / dist * 1.2; player.position.z += dz / dist * 1.2; resolveCollision(player.position, PLAYER_RADIUS, player.position.y); }
+                            playSound('swing');
+                        }
+                    } else { b.hitDone = false; bossStagger(b, 1.1, 'STAGGERED!'); }
+                    break;
+                }
+                case 'charge': { // stomps for 0.9s (telegraph), then rushes in a straight line
+                    b.t += dt;
+                    if (b.t < 0.9) { m.rotation.y = Math.atan2(b.dir.x, b.dir.z); b.body.rotation.x = 0.35; bossTelegraph(b, true, 2.2); m.position.y = Math.abs(Math.sin(b.t * 18)) * 0.08; }
+                    else {
+                        bossTelegraph(b, false);
+                        mx = b.dir.x; mz = b.dir.z; speed = 11;
+                        const before = m.position.clone();
+                        m.position.x += mx * speed * dt; m.position.z += mz * speed * dt;
+                        resolveCollision(m.position, 0.7, 0);
+                        speed = 0; // already moved
+                        if (!b.hitDone && dist < 1.6 && p.y < 1.6) { b.hitDone = true; damagePlayer(18, m.position); player.position.x += b.dir.x * 2.5; player.position.z += b.dir.z * 2.5; resolveCollision(player.position, PLAYER_RADIUS, player.position.y); }
+                        const moved = m.position.distanceTo(before);
+                        if (moved < 11 * dt * 0.4) { b.hitDone = false; playSound('slam'); bossStagger(b, 1.7, 'WALL!'); $('game-container').classList.remove('shake'); void $('game-container').offsetWidth; $('game-container').classList.add('shake'); }
+                        else if (b.t > 1.9) { b.hitDone = false; bossStagger(b, 0.9, 'STAGGERED!'); }
+                    }
+                    break;
+                }
+                case 'slam': { // jumps + raises the sledge overhead, slams: expanding shockwave you must JUMP over
+                    b.t += dt;
+                    if (b.t < 1.0) { face(3); A[0].rotation.x = -3.0 * Math.min(1, b.t / 0.6); A[1].rotation.x = -3.0 * Math.min(1, b.t / 0.6); m.position.y = Math.sin(Math.min(1, b.t) * Math.PI) * 0.7; bossTelegraph(b, true, 5); }
+                    else {
+                        m.position.y = 0; bossTelegraph(b, false);
+                        A[0].rotation.x = -0.4; A[1].rotation.x = -0.4;
+                        b.wave.position.set(m.position.x, 0.08, m.position.z); b.waveR = 0.6; b.waveHit = false;
+                        playSound('slam');
+                        $('game-container').classList.remove('shake'); void $('game-container').offsetWidth; $('game-container').classList.add('shake');
+                        bossStagger(b, 1.3, 'STAGGERED!');
+                    }
+                    break;
+                }
+                case 'stagger': {
+                    b.t -= dt;
+                    b.body.rotation.x = 0.25 + Math.sin(elapsed * 9) * 0.06;
+                    A.forEach(a => a.rotation.x += (0.4 - a.rotation.x) * Math.min(1, dt * 5));
+                    const arr = b.stars.geometry.attributes.position.array;
+                    for (let k = 0; k < 5; k++) { const a = elapsed * 4 + k * 1.256; arr[k * 3] = Math.cos(a) * 0.4; arr[k * 3 + 1] = 2.9; arr[k * 3 + 2] = Math.sin(a) * 0.4; }
+                    b.stars.geometry.attributes.position.needsUpdate = true;
+                    if (b.t <= 0) { b.state = 'chase'; b.cd = 0.9 + Math.random() * 0.8; b.stars.visible = false; }
+                    break;
+                }
+            }
+            if (speed > 0) { m.position.x += mx * speed * dt; m.position.z += mz * speed * dt; }
+            resolveCollision(m.position, 0.7, 0);
+            if (speed > 0 || b.state === 'charge' && b.t > 0.9) {
+                b.walk += dt * (b.state === 'charge' ? 16 : 6);
+                const sw = Math.sin(b.walk) * 0.6; L[0].rotation.x = sw; L[1].rotation.x = -sw;
+                if (b.state === 'chase') { A[1].rotation.x = -sw * 0.6; }
+            } else { L.forEach(l => l.rotation.x *= 0.85); }
+            if (b.flash > 0) b.body.children.forEach(c => c.material && !Array.isArray(c.material) && c.material.emissive && c.material.emissive.setHex(0x441010));
+            else { b.body.children.forEach(c => c.material && !Array.isArray(c.material) && c.material.emissive && c.material.emissive.setHex(0x000000)); }
         }
 
         /* --- THUNDER BAY KIT: skyline backdrop, snow, hydro poles, bus stops, trees, trucks, trestle --- */
@@ -2046,7 +2671,7 @@
                     spots.push({ x, y: 1.6 + srand() * 0.5, z, ry: Math.atan2(s.nx, s.nz) });
                 });
                 posterSpotsExtra.forEach(p => spots.push(p));
-                postersPlaced = placePosters(spots, 8 + Math.floor(srand() * 5));
+                postersPlaced = placePosters(spots, 6 + Math.floor(srand() * 3)); // decorative; the 2 gold ones are collectibles
             }
 
             // ground dressing: puddles (fake neon reflections), grime, vents, manholes
@@ -2138,7 +2763,9 @@
             const nearGirl = girlPool.filter(c => c.d >= 3 && c.d <= 7).sort(() => srand() - 0.5)[0];
             const girlCells = far(girlPool.filter(c => c !== nearGirl), 3, 16, nearGirl ? [spawnPt, nearGirl] : [spawnPt]);
             if (nearGirl) girlCells.unshift(nearGirl);
+            placeBonusPosters({ openCells: openCells.filter(c => !relicCells.includes(c) && c !== deadEnd), isOpen, water, LV, avoid: girlCells.concat([spawnPt]) });
             mapInfo = {
+                cells: openCells.filter(c => !c.bridge).map(c => [c.x, c.z]),
                 relics: relicSpots,
                 thugs: thugCells.map(c => [c.x + (srand() - 0.5) * 2, c.z + (srand() - 0.5) * 2]),
                 girls: girlCells.map(c => [c.x + 1.2, c.z + 1.2])
@@ -2891,6 +3518,11 @@
             bindBtn('btn-hit', () => { hitHeld = true; tryAttack(); }, () => { hitHeld = false; });
 
             $('btn-start').addEventListener('click', () => startGame(selectedLevel));
+            $('btn-howto').addEventListener('click', () => openHowto('start-screen'));
+            $('btn-pause-howto').addEventListener('click', () => openHowto('pause-screen'));
+            $('btn-howto-back').addEventListener('click', closeHowto);
+            $('btn-outfits').addEventListener('click', openOutfits);
+            $('btn-outfit-back').addEventListener('click', closeOutfits);
             $('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); pauseGame(); });
             $('btn-pause').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
             $('btn-resume').addEventListener('click', resumeGame);
@@ -2967,13 +3599,15 @@
             // clear spawned actors (shared geometry/materials are reused, nothing to leak)
             while (dynamicGroup.children.length) dynamicGroup.remove(dynamicGroup.children[0]);
             healers.forEach(h => h.bubble && h.bubble.remove());
-            relics = []; thugs = []; healers = [];
+            relics = []; thugs = []; healers = []; clearBoss();
             dmgNums.forEach(d => d.el.remove()); dmgNums = [];
             newMap(firstSeed || (Math.random() * 1e9) | 0); firstSeed = 0;
             slideVX = slideVZ = 0; warmT = 0;
             downed = false; downPhase = ''; reviver = null; thugGrace = 0; if (sparkles) sparkles.visible = false;
             $('rinsed-flash').classList.remove('on'); $('game-container').classList.remove('shake');
-            hp = MAX_HP; stamina = MAX_STAMINA; relicCount = 0; thugsDowned = 0; playTime = 0;
+            hp = MAX_HP; stamina = MAX_STAMINA; relicCount = 0; thugsDowned = 0; playTime = 0; bonusFound = 0;
+            if ($('poster-count')) $('poster-count').textContent = 0;
+            $('unlock-pop').classList.remove('show');
             running = false; wantJump = false; hitHeld = false; velY = 0; onGround = true;
             attackTimer = -1; attackCooldown = 0; invuln = 0; hurtFlash = 0; deathTimer = 0;
             input.x = 0; input.y = 0; joyTouchId = null; camTouchId = null; controls.resetJoystick();
@@ -2990,7 +3624,7 @@
         function winGame() {
             gameState = 'won';
             playSound('win');
-            $('win-stats').textContent = `${LEVELS[currentLevel].name}  •  Time ${formatTime(playTime)}  •  Thugs down ${thugsDowned}`;
+            $('win-stats').textContent = `${LEVELS[currentLevel].name}  •  10/10 STEMS  •  BINO DOWN  •  Time ${formatTime(playTime)}  •  Thugs down ${thugsDowned}`;
             const last = currentLevel >= LEVELS.length - 1;
             $('btn-next').style.display = last ? 'none' : '';
             $('win-sub').textContent = last ? 'All levels cleared' : 'Level cleared';
@@ -3000,7 +3634,7 @@
             gameState = 'dead';
             deathTimer = 0;
             playSound('lose');
-            $('lose-stats').textContent = `Relics ${relicCount}/${TOTAL_RELICS}  •  Thugs down ${thugsDowned}`;
+            $('lose-stats').textContent = `Stems ${relicCount}/${TOTAL_RELICS}  •  Thugs down ${thugsDowned}` + (boss && !boss.dead ? '  •  BINO wins this round' : '');
             setTimeout(() => { if (gameState === 'dead') { $('hud').style.display = 'none'; $('gameover-screen').style.display = 'flex'; } }, 600);
         }
         function formatTime(s) { const m = Math.floor(s / 60), r = Math.floor(s % 60); return m + ':' + (r < 10 ? '0' : '') + r; }
@@ -3141,9 +3775,9 @@
                     r.mesh.visible = false;
                     relicCount++;
                     playSound('relic');
-                    spawnNumber('+RELIC', r.mesh.position, 'gold');
-                    showToast(`RELIC ${relicCount}/${TOTAL_RELICS}`, '#ffcc00');
-                    if (relicCount >= TOTAL_RELICS) winGame();
+                    spawnNumber('+STEM', r.mesh.position, 'gold');
+                    showToast(`STEM ${relicCount}/${TOTAL_RELICS}`, '#ffcc00');
+                    if (relicCount >= TOTAL_RELICS) startBoss();
                 }
             }
         }
@@ -3174,6 +3808,11 @@
                     t.dead = true; t.deadT = 0; t.hpGroup.visible = false; thugsDowned++;
                     playSound('thugdown');
                 }
+            }
+            if (boss && !boss.dead) {
+                const bx = boss.mesh.position.x - p.x, bz = boss.mesh.position.z - p.z, bd = Math.hypot(bx, bz);
+                const dot = bd > 0.01 ? (bx * fx + bz * fz) / bd : 1;
+                if (bd < 3.2 && dot > 0.2 && Math.abs(boss.mesh.position.y - p.y) < 2) damageBoss(14 + Math.floor(Math.random() * 7), bx / (bd || 1), bz / (bd || 1));
             }
             if (landed) playSound('hit');
         }
@@ -3324,6 +3963,7 @@
             if (gameState === 'playing') {
                 if (downed) updateDowned(dt); else updatePlayer(dt);
                 updateThugs(dt);
+                updateBoss(dt);
                 updateGirls(dt);
                 updateHUD();
             } else if (gameState === 'dead') {
@@ -3334,13 +3974,15 @@
             } else if (gameState === 'paused') {
                 // frozen: no HP drain, no enemies, no girls, no timers
             } else if (gameState === 'menu') {
-                cameraAngleX += dt * 0.12; // slow orbit behind the title screen
+                if (!outfitPreview) cameraAngleX += dt * 0.12; // slow orbit behind the title screen
                 updateGirls(dt);
             } else {
                 updateGirls(dt);
             }
             if (gameState !== 'dead' && !downed) player.rotation.x = 0;
 
+            updateBonusPosters(dt);
+            if (outfitPreview && gameState === 'menu') player.rotation.y += dt * 0.7;
             // relic spin
             for (const r of relics) {
                 if (r.taken) continue;
@@ -3375,6 +4017,10 @@
             }
 
             updateCamera(dt);
+            if (outfitPreview && gameState === 'menu') { // close-up of AJ for the outfit picker
+                const pp = player.position;
+                camera.position.set(pp.x + 0.4, pp.y + 1.75, pp.z + 3.3); camera.lookAt(pp.x, pp.y + 1.25, pp.z);
+            }
             updateDmgNums(dt);
             updateBubbles(dt);
             renderer.render(scene, camera);
@@ -3427,6 +4073,32 @@
             },
             relicCloseupEnd: () => { window.__freezeCam = false; player.visible = true; },
             onIce: () => onIce(player.position.x, player.position.z), iceZones: () => iceZones, fires: () => fireSpots,
+            bonus: () => bonusPosters.map(b => ({ x: b.x, y: b.y, z: b.z, top: b.top, stand: b.stand, taken: b.taken })), bonusFound: () => bonusFound,
+            save: () => JSON.parse(JSON.stringify(save)), resetSave: () => { save = { unlocked: [], outfit: 'default' }; writeSave(save); applyOutfit('default'); },
+            outfit: (id) => applyOutfit(id),
+            bonusFrame: (k, d = 3.2) => { // stand AJ d metres in front of bonus poster k, camera behind him looking at it
+                const b = bonusPosters[k], ry = b.g.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry);
+                const bx = b.top ? b.stand[0] : b.x, bz = b.top ? b.stand[1] : b.z;
+                const X = bx + fx * d, Z = bz + fz * d;
+                player.position.set(X, 0, Z); cameraAngleX = ry; player.rotation.y = ry + Math.PI; cameraAngleY = 0.22; updateCamera(1);
+                return [X, Z];
+            },
+            bonusReachable: () => bonusPosters.map(b => {
+                const ok = (x, z) => findPath(0, 0, x, z).length > 1 || losClear(0, 0, x, z);
+                const bx = b.top ? b.stand[0] : b.x, bz = b.top ? b.stand[1] : b.z;
+                for (let k = 0; k < 32; k++) { const a = k * Math.PI / 8, rr = 1.2 + Math.floor(k / 16) * 0.8, X = bx + Math.sin(a) * rr, Z = bz + Math.cos(a) * rr; if (navFree(navC(X), navC(Z)) && ok(X, Z)) return true; }
+                return false;
+            }),
+            boss: () => boss && { hp: boss.hp, state: boss.state, dead: boss.dead, seen: Object.keys(boss.seen), backup: boss.calledBackup, pos: boss.mesh.position.toArray(), waveR: boss.waveR },
+            bossForce: (st) => { if (boss) { boss.state = st; boss.t = 0; boss.hitDone = false; if (st === 'charge') { const p = player.position, m = boss.mesh.position, d = Math.hypot(p.x - m.x, p.z - m.z) || 1; boss.dir.set((p.x - m.x) / d, 0, (p.z - m.z) / d); } } },
+            startBoss: () => startBoss(),
+            bossKill: () => { if (boss && !boss.dead) { boss.state = 'stagger'; boss.t = 5; damageBoss(99999, 0, 1); } },
+            bossFrame: (d = 6) => { // AJ d metres from BINO, camera behind AJ
+                const m = boss.mesh.position; let best = null;
+                for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8, X = m.x + Math.sin(a) * d, Z = m.z + Math.cos(a) * d; if (!pointInWalls(X, 1, Z, 0.6) && losClear(X, Z, m.x, m.z)) { best = [X, Z, a]; break; } }
+                if (!best) return false;
+                player.position.set(best[0], 0, best[1]); cameraAngleX = best[2] + 0.55; player.rotation.y = best[2] + Math.PI; cameraAngleY = 0.32; updateCamera(1); return true;
+            },
             renderInfo: () => ({ cap: renderCap, w: renderer.domElement.width, h: renderer.domElement.height }),
             ajCloseup: () => { window.__camDist = 2.9; window.__camTargetY = 1.3; cameraAngleX = player.rotation.y; cameraAngleY = 0.1; updateCamera(1); },
             camReset: () => { delete window.__camDist; delete window.__camTargetY; },
