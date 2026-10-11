@@ -127,10 +127,42 @@ const { chromium, devices } = require('playwright');
   await page.tap('#lvl-river'); await W(200); await page.tap('#btn-start'); await W(800);
   ok('level select tent city starts L2', (await page.evaluate(() => RINSED.level())) === 1);
   await page.evaluate(() => RINSED.collectAll()); await W(1600);
-  ok('L2 win hides next', (await S()).gameState === 'won' && !(await page.isVisible('#btn-next')));
+  ok('L2 win offers NEXT LEVEL (L3 follows)', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
   await page.tap('#win-screen .btn-menu'); await W(400);
   await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
   ok('back to alley', (await page.evaluate(() => RINSED.level())) === 0);
+  // ---- Level 3: DEEP FREEZE ----
+  await page.tap('#btn-pause'); await W(200); await page.tap('#btn-mainmenu'); await W(400);
+  await page.tap('#lvl-winter'); await page.tap('#btn-start'); await W(900);
+  st = await S();
+  ok('level select DEEP FREEZE starts L3', (await page.evaluate(() => RINSED.level())) === 2 && st.gameState === 'playing' && (await page.textContent('#level-name')).includes('DEEP FREEZE'));
+  ok('level3 reachable', (await page.evaluate(() => RINSED.reachable())).every(Boolean));
+  const p3 = await page.evaluate(() => RINSED.posters().map(p => p.crime));
+  ok('L3 posters incl. MUSTARD + TOO LEGIT', p3.length >= 8 && p3.includes('MUSTARD CRIMES') && p3.some(c => c.startsWith('BEING TOO LEGIT')));
+  // cold drain vs warm by a fire
+  const drainAt = async (x, z) => { await page.evaluate(([x, z]) => { RINSED.freezeDrain(false); RINSED.tp(x, z); hp = 80; }, [x, z]); const t0 = await page.evaluate(() => [hp, playTime]); await W(2500); const t1 = await page.evaluate(() => [hp, playTime]); return (t0[0] - t1[0]) / (t1[1] - t0[1]); };
+  const fire = await page.evaluate(() => RINSED.fires()[0]);
+  const coldRate = await drainAt(0, 0), warmRate = await drainAt(fire[0] + 1.2, fire[1] + 1.2);
+  console.log('  drain/s cold', coldRate.toFixed(2), 'warm', warmRate.toFixed(2));
+  ok('cold drains faster than level 1 (>0.9/s), fire slows it', coldRate > 0.9 && warmRate < coldRate * 0.5);
+  // ice: AJ keeps sliding after letting go of the stick
+  const ice = await page.evaluate(() => RINSED.iceZones().find(z => z.r));
+  await page.evaluate(([x, z]) => { RINSED.freezeDrain(true); RINSED.tp(x, z, 0); }, [ice.x, ice.z]);
+  const onIce = await page.evaluate(() => RINSED.onIce());
+  await T('touchStart', [{ x: jx, y: jy, id: 7 }]); await T('touchMove', [{ x: jx, y: jy - 55, id: 7 }]); await W(700);
+  const a0 = (await S()).pos; await T('touchEnd', []); await W(500); const a1 = (await S()).pos;
+  console.log('  on ice', onIce, 'slid after release', Math.hypot(a1[0] - a0[0], a1[2] - a0[2]).toFixed(2), 'm');
+  ok('ice makes AJ slide after release', onIce && Math.hypot(a1[0] - a0[0], a1[2] - a0[2]) > 0.3);
+  // winter screenshot looking along a street towards the frozen lake
+  await page.evaluate(() => { const g = healers[1] ? healers[1].mesh.position : { x: 0, z: 30 }; RINSED.tp(0, 6, Math.PI + 0.25); RINSED.setCam(Math.PI + 0.25, 0.3); });
+  await W(1200);
+  await page.screenshot({ path: '../shot-winter.png' });
+  await page.evaluate(() => { RINSED.tp(cellX(11), cellX(19), Math.PI); RINSED.setCam(Math.PI, 0.18); });
+  await W(1000);
+  await page.screenshot({ path: '../shot-winter2.png' });
+  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  ok('L3 win = all cleared, no next', (await S()).gameState === 'won' && !(await page.isVisible('#btn-next')) && (await page.textContent('#win-sub')).includes('All levels'));
+  await page.tap('#win-screen .btn-menu'); await W(300); await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(700);
   const fps = await page.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); (function f() { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else r(n / 2); })(); }));
   console.log('fps (swiftshader, no GPU)', fps, JSON.stringify(await page.evaluate(() => RINSED.renderInfo())));
   console.log('ERRORS:', errors.length ? errors : 'none');

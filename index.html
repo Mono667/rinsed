@@ -237,7 +237,8 @@
             .overlay .subtitle { font-size: 0.85rem; margin: 2px 0 6px; }
             .overlay .howto { font-size: 0.72rem; line-height: 1.45; margin: 4px 0; }
             .overlay .btn { padding: 9px 30px; font-size: 1.15rem; margin-top: 8px; }
-            .lvl-btn { margin-top: 6px; padding: 6px 16px; font-size: 0.95rem; }
+            .lvl-btn { margin-top: 6px; padding: 6px 12px; font-size: 0.85rem; letter-spacing: 1px; }
+            .lvl-row { gap: 8px; }
         }
         .lvl-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center; }
         .lvl-btn {
@@ -375,6 +376,7 @@
         <div class="lvl-row">
             <button id="lvl-alley" class="lvl-btn sel">1 &bull; ALLEYWAY</button>
             <button id="lvl-river" class="lvl-btn">2 &bull; TENT CITY</button>
+            <button id="lvl-winter" class="lvl-btn">3 &bull; DEEP FREEZE</button>
         </div>
         <button id="btn-start" class="btn">Start</button>
     </div>
@@ -1166,7 +1168,66 @@
                 signs: [['BAIT & TACKLE', '#2ad8ff', 0x2ad8ff], ['MOTEL', '#ff2a8a', 0xff2a8a], ['BEER', '#ffd02a', 0xffd02a], ['PERSIANS', '#6aff3a', 0x6aff3a], ['DINER', '#ff6a2a', 0xff6a2a], ['CAFE', '#2ad8ff', 0x2ad8ff], ['TAXI', '#ffd02a', 0xffd02a], ['BRIDGE ST', '#b04aff', 0xb04aff], ['HOTEL', '#6aff3a', 0x6aff3a]]
             }
         ];
+        LEVELS.push({
+            id: 'winter', name: 'DEEP FREEZE', sub: 'Deep Freeze', river: false, winter: true,
+            bg: 0x5a6680, fogNear: 7, fogFar: 52, hemiSky: 0xbccbe8, hemiGround: 0x8a92a8, hemiI: 0.85, amb: 0x4a5266, ambI: 0.5, moon: 0xc8d8ff, moonI: 0.45,
+            lamp: 0xffb070, pool: 0x8a6a3a, warm: 0xffa050, barrels: 10,
+            horizon: '#9aa8c4', lake: '#c8d4e6', sil: '#3a4460', backdropYaw: -1.0, drain: 1.5,
+            signs: [['THE ALLEY BAR', '#ff2a8a', 0xff2a8a], ['HOCKEY', '#2ad8ff', 0x2ad8ff], ['PERSIANS', '#ffd02a', 0xffd02a], ['SKATE RENTAL', '#6aff3a', 0x6aff3a], ['COFFEE', '#ff6a2a', 0xff6a2a], ['BEER', '#ffd02a', 0xffd02a], ['HOTEL', '#ff2a8a', 0xff2a8a], ['SNOW REMOVAL', '#b04aff', 0xb04aff], ['24H', '#6aff3a', 0x6aff3a]]
+        });
         let currentLevel = 0, selectedLevel = 0;
+        let fireSpots = [], iceZones = [], snowFall = null;
+        const SHORE_J = 20; // (GN - 3) DEEP FREEZE: rows SHORE_J.. are the snowy shore + frozen Lake Superior ice
+        function onIce(x, z) {
+            for (const zn of iceZones) {
+                if (zn.r ? (x - zn.x) ** 2 + (z - zn.z) ** 2 < zn.r * zn.r : (x > zn.x0 && x < zn.x1 && z > zn.z0 && z < zn.z1)) return true;
+            }
+            return false;
+        }
+        function ensureWinterTextures() {
+            if (TEX.groundSnow) return;
+            TEX.groundSnowTex = pixTex(64, 64, (g) => {
+                px(g, 0, 0, '#d4dcea', 64, 64);
+                for (let i = 0; i < 500; i++) px(g, srandT() * 64, srandT() * 64, pickc(['#c4cee0', '#e4eaf4', '#b8c2d4', '#dde4ef']), 1 + srandT() * 2, 1);
+                for (const x of [18, 26, 44, 52]) for (let y = 0; y < 64; y++) px(g, x + Math.sin(y * 0.2) * 0.6, y, 'rgba(120,130,150,0.25)', 2, 1); // plow/tire tracks
+                for (let i = 0; i < 14; i++) px(g, srandT() * 64, srandT() * 64, 'rgba(110,100,90,0.25)', 3 + srandT() * 6, 2); // slush
+            });
+            TEX.groundSnowTex.repeat.set(40, 40);
+            TEX.groundSnow = phong({ map: TEX.groundSnowTex, specular: 0x5a6680, shininess: 30 });
+            TEX.ice = new THREE.MeshPhongMaterial({ map: pixTex(64, 64, (g) => { // soft-edged glossy ice puddle
+                g.clearRect(0, 0, 64, 64);
+                const gr = g.createRadialGradient(32, 32, 4, 32, 32, 31);
+                gr.addColorStop(0, 'rgba(214,234,252,0.95)'); gr.addColorStop(0.75, 'rgba(196,222,246,0.85)'); gr.addColorStop(1, 'rgba(196,222,246,0)');
+                g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+                g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 0.6;
+                for (let i = 0; i < 7; i++) { g.beginPath(); let x = 32, y = 32; g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (srandT() - 0.5) * 14; y += (srandT() - 0.5) * 14; g.lineTo(x, y); } g.stroke(); }
+            }), transparent: true, emissive: 0x1a2a3a, specular: 0xffffff, shininess: 140, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+            TEX.lakeIce = phong({ map: pixTex(64, 64, (g) => { px(g, 0, 0, '#b8c8dc', 64, 64); for (let i = 0; i < 300; i++) px(g, srandT() * 64, srandT() * 64, pickc(['#c8d6e8', '#a8b8cc', '#dfe8f2']), 3, 1); for (let i = 0; i < 6; i++) { let x = srandT() * 64, y = srandT() * 64; for (let k = 0; k < 30; k++) { px(g, x, y, '#8a9ab0', 1, 1); x += srandT() * 2 - 0.5; y += srandT() * 2 - 1; } } }), specular: 0xaabbcc, shininess: 80 });
+            TEX.lakeIce.map.repeat.set(30, 12);
+        }
+        function makeSnowFall() {
+            const N = 1400, pos = new Float32Array(N * 3), spd = new Float32Array(N);
+            for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 44; pos[i * 3 + 1] = Math.random() * 18; pos[i * 3 + 2] = (Math.random() - 0.5) * 44; spd[i] = 1.2 + Math.random() * 1.6; }
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const tex = TEX.flake || (TEX.flake = pixTex(16, 16, (c) => { const gr = c.createRadialGradient(8, 8, 0, 8, 8, 8); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 16, 16); }));
+            const p = new THREE.Points(g, new THREE.PointsMaterial({ map: tex, color: 0xffffff, size: 0.16, transparent: true, depthWrite: false, opacity: 0.9 }));
+            p.frustumCulled = false; p.userData.spd = spd;
+            return p;
+        }
+        function updateSnowFall(dt) {
+            if (!snowFall || !snowFall.visible) return;
+            const a = snowFall.geometry.attributes.position, arr = a.array, spd = snowFall.userData.spd;
+            const wind = 2.2 + Math.sin(elapsed * 0.4) * 1.5; // blowing snow
+            snowFall.position.set(camera.position.x, 0, camera.position.z);
+            for (let i = 0; i < spd.length; i++) {
+                arr[i * 3 + 1] -= spd[i] * dt;
+                arr[i * 3] += (wind + Math.sin(elapsed * 2 + i) * 0.6) * dt;
+                arr[i * 3 + 2] += Math.cos(elapsed * 1.3 + i * 0.7) * 0.5 * dt;
+                if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] += 18;
+                if (arr[i * 3] > 22) arr[i * 3] -= 44;
+            }
+            a.needsUpdate = true;
+        }
         const RIVER_J0 = 15, RIVER_J1 = 17, BRIDGE_I = [5, 17];
         let hemiLight = null, ambLight = null;
         function applyLevelLook(L) {
@@ -1176,6 +1237,9 @@
             ambLight.color.setHex(L.amb); ambLight.intensity = L.ambI;
             moonLight.color.setHex(L.moon); moonLight.intensity = L.moonI;
             if (TEX.pool) TEX.pool.color.setHex(L.pool);
+            if (TEX.facades) TEX.facades.forEach(m => m.emissive.setHex(L.winter ? 0xc4d6ff : 0xffffff)); // frosted windows in winter
+            if (!snowFall) { snowFall = makeSnowFall(); scene.add(snowFall); }
+            snowFall.visible = !!L.winter;
         }
 
         /* --- RIVERSIDE KIT --- */
@@ -1511,6 +1575,10 @@
                     open[id(i, 8)] = 0; open[id(i, 21)] = 0;                               // overpass ends sit on buildings
                 }
             }
+            if (L.winter) {
+                for (let i = 1; i < GN - 1; i++) { open[id(i, SHORE_J)] = 1; open[id(i, SHORE_J + 1)] = 1; } // snowy shore road + shore ice
+                for (let i = 0; i < GN; i++) { open[id(i, GN - 1)] = 0; water[id(i, GN - 1)] = 1; }         // frozen lake beyond (no buildings)
+            }
             // anything not connected to the spawn becomes building (guarantees reachability)
             const dist = bfsCells(open, new Set(), GHALF, GHALF);
             for (let k = 0; k < GN * GN; k++) if (open[k] && dist[k] < 0) open[k] = 0;
@@ -1556,12 +1624,13 @@
             disposeCity();
             ensureTextures();
             cityGroup = new THREE.Group();
-            posterSpotsExtra = [];
+            posterSpotsExtra = []; fireSpots = []; iceZones = [];
             scene.add(cityGroup);
 
             // Ground
             const groundGeo = new THREE.PlaneGeometry(160, 160);
-            const groundMat = TEX.ground;
+            if (LEVELS[currentLevel].winter) ensureWinterTextures();
+            const groundMat = LEVELS[currentLevel].winter ? TEX.groundSnow : TEX.ground;
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
@@ -1637,7 +1706,8 @@
                 }
             });
             facadeBatches.forEach((b, k) => b.build(TEX.facades[k], cityGroup));
-            roofBatch.build(TEX.roof, cityGroup);
+            ensureTBayTextures();
+            roofBatch.build(LV.winter ? TEX.snow : TEX.roof, cityGroup);
             trim.build(TEX.roof, cityGroup);
 
             // wall slots: every alley cell side that touches a building
@@ -1710,7 +1780,8 @@
             const snowGeo = GEO.snowPile || (GEO.snowPile = new THREE.IcosahedronGeometry(1, 1));
             slots.forEach(s => {
                 // Thunder Bay: slush/snowbanks in the corners, hydro poles, transit stops
-                if (srand() < 0.16) { const [x, , z] = W(s, srand() < 0.5 ? -2.2 : 2.2, 0, 0.75); snowB.add(snowGeo, x, 0.02, z, srand() * 6, 0, 0, 0.8 + srand() * 0.5, 0.4 + srand() * 0.25, 0.65 + srand() * 0.3); }
+                if (LV.winter && srand() < 0.45) { const [x, , z] = W(s, (srand() - 0.5) * 1.5, 0, 0.55); snowB.add(snowGeo, x, -0.05, z, slotRy(s), 0, 0, 2.7, 0.55 + srand() * 0.25, 0.55); } // plow ridge
+                if (srand() < (LV.winter ? 0.5 : 0.16)) { const [x, , z] = W(s, srand() < 0.5 ? -2.2 : 2.2, 0, 0.75); snowB.add(snowGeo, x, 0.02, z, srand() * 6, 0, 0, 0.8 + srand() * 0.5, 0.4 + srand() * 0.25, 0.65 + srand() * 0.3); }
                 if (!s.used && srand() < 0.05) {
                     const [x, , z] = W(s, -2.4, 0, 0.45), ry = slotRy(s);
                     hydroB.add(GEO.hydroPole || (GEO.hydroPole = new THREE.CylinderGeometry(0.11, 0.15, 9, 8)), x, 4.5, z);
@@ -1886,6 +1957,7 @@
                         const t0 = k / seg, t1 = (k + 1) / seg;
                         const P = (t) => [a[0] + (b[0] - a[0]) * t + (a[1] === b[1] ? 0 : off), y0 + w * 0.3 - Math.sin(t * Math.PI) * 0.8, a[1] + (b[1] - a[1]) * t + (a[0] === b[0] ? 0 : off)];
                         wirePts.push(...P(t0), ...P(t1));
+                        if (LV.winter && w === 0 && k % 2 === 1) { const q = P(t0); bulbPts.push(q[0], q[1] - 0.08, q[2]); }
                     }
                 }
                 void xOpen; void zOpen;
@@ -1904,7 +1976,12 @@
                 cityGroup.add(new THREE.LineSegments(wg, TEX.wire));
             }
             const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bulbPts, 3));
-            cityGroup.add(new THREE.Points(bg, new THREE.PointsMaterial({ map: TEX.glow, color: 0xffc070, size: 1.1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
+            if (LV.winter) { // Christmas-ish coloured string lights
+                const pal = [[1, 0.2, 0.2], [0.2, 1, 0.3], [0.3, 0.5, 1], [1, 0.85, 0.2], [1, 0.4, 0.9]], cols = [];
+                for (let k = 0; k < bulbPts.length / 3; k++) cols.push(...pal[k % pal.length]);
+                bg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+            }
+            cityGroup.add(new THREE.Points(bg, new THREE.PointsMaterial({ map: TEX.glow, color: LV.winter ? 0xffffff : 0xffc070, vertexColors: !!LV.winter, size: LV.winter ? 0.9 : 1.1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
 
             // fences: only across alley edges that keep the map fully connected
             const blocked = new Set();
@@ -1940,6 +2017,25 @@
             const openCells = [];
             for (let i = 0; i < GN; i++) for (let j = 0; j < GN; j++) if (open[i * GN + j] && dist[i * GN + j] >= 0) openCells.push({ i, j, d: dist[i * GN + j], x: cellX(i), z: cellX(j), bridge: !!bridge[i * GN + j], n: [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isOpen(i + a, j + b)).length });
             const campCells = LV.river ? buildRiverside(open, water, isOpen, openCells) : [];
+            if (LV.winter) {
+                const zs = cellX(GN - 1) - CELL / 2;                 // edge of the walkable shore ice
+                addWall(-90, 90, zs, zs + 60, 60); cityWalls[cityWalls.length - 1].water = true;
+                const lake = new THREE.Mesh(new THREE.PlaneGeometry(320, 140), TEX.lakeIce);
+                lake.rotation.x = -Math.PI / 2; lake.position.set(0, 0.012, zs - CELL + 70); cityGroup.add(lake);
+                iceZones.push({ x0: -70, x1: 70, z0: cellX(SHORE_J + 1) - CELL / 2, z1: zs });  // shore ice row is slippery
+                const shore = new Batch(), huts = new Batch();
+                for (let x = -66; x <= 66; x += 3) shore.add(GEO.snowPile, x, -0.1, cellX(SHORE_J + 1) - CELL / 2, 0, 0, 0, 1.9, 0.45 + Math.abs(Math.sin(x)) * 0.25, 0.5);
+                for (let k = 0; k < 7; k++) huts.box(2, 1.8, 2.2, -50 + k * 16 + srand() * 5, 0.9, zs + 8 + srand() * 25, srand()); // ice-fishing huts
+                shore.build(TEX.snow, cityGroup); huts.build(TEX.trucks[0], cityGroup);
+                const ip = new Batch();
+                openCells.filter(c => c.d > 2 && c.j < SHORE_J).sort(() => srand() - 0.5).slice(0, 16).forEach(c => {
+                    const x = c.x + (srand() - 0.5) * 2, z = c.z + (srand() - 0.5) * 2, r = 1.3 + srand() * 0.9;
+                    ip.add(GEO.fencePlane || (GEO.fencePlane = new THREE.PlaneGeometry(1, 1)), x, 0.02, z, srand() * 6, 0, -Math.PI / 2, r * 2.2, r * 2.2, 1);
+                    iceZones.push({ x, z, r });
+                });
+                const sh = new THREE.Mesh(new THREE.PlaneGeometry(140, CELL), TEX.lakeIce); sh.rotation.x = -Math.PI / 2; sh.position.set(0, 0.018, cellX(SHORE_J + 1)); cityGroup.add(sh);
+                ip.build(TEX.ice, cityGroup);
+            }
             // WANTED posters of AJ: wall faces (+ pillars / lamp posts in tent city), 8-12 per level
             {
                 const spots = [];
@@ -1956,7 +2052,7 @@
             // ground dressing: puddles (fake neon reflections), grime, vents, manholes
             const puddleB = [new Batch(), new Batch(), new Batch()], darkB = new Batch();
             openCells.forEach(c => {
-                if (c.bridge) return;
+                if (c.bridge || LV.winter) return; // no wet asphalt puddles / grime on snow
                 if (srand() < 0.3) {
                     const x = c.x + (srand() - 0.5) * 3, z = c.z + (srand() - 0.5) * 3, s = 1.5 + srand() * 2;
                     darkB.quad(x, 0.02, z, 1, 0, 0, 0, 0, -1, s * 1.4, s, 15);
@@ -1992,6 +2088,7 @@
                 cityGroup.add(fire);
                 neonLights.push({ fire });
                 fireGlow.push(bx, 1.6, bz);
+                fireSpots.push([bx, bz]);
                 addWall(bx - 0.45, bx + 0.45, bz - 0.45, bz + 0.45, 1.1);
                 c.barrel = true;
             });
@@ -2118,11 +2215,17 @@
             const g = new THREE.Group();
             const hoodies = [0x5a1e22, 0x2a2f55, 0x23452a, 0x4a3a18];
             const hood = hoodies[variant % hoodies.length];
-            part(g, 0.75, 0.85, 0.45, hood, 0, 1.15, 0, true);                 // torso
+            const winter = LEVELS[currentLevel].winter;
+            if (winter) { part(g, 0.86, 0.92, 0.56, hood, 0, 1.15, 0, true); part(g, 0.5, 0.14, 0.5, 0xd8d0c0, 0, 1.6, 0, false); } // puffy parka + fur collar
+            else part(g, 0.75, 0.85, 0.45, hood, 0, 1.15, 0, true);                 // torso
             const thugHead = part(g, 0.42, 0.45, 0.42, 0x8a5a3c, 0, 1.85, 0, false); // head
             thugHead.material = faceMaterial('thug', 0x8a5a3c);
             const beanie = new THREE.Mesh(GEO.beanie || (GEO.beanie = new THREE.SphereGeometry(0.235, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.48)), mat(0x111111));
             beanie.scale.set(1, 0.78, 1); beanie.position.y = 1.93; g.add(beanie);                 // beanie
+            if (winter) { // toque with a pompom
+                beanie.material = mat([0xa02a2a, 0x2a5aa0, 0x2a7a3a, 0xd0a020][variant % 4]);
+                const pom = new THREE.Mesh(GEO.pom || (GEO.pom = new THREE.SphereGeometry(0.08, 10, 8)), mat(0xf0f0f0)); pom.position.y = 2.13; g.add(pom);
+            }
             part(g, 0.7, 0.45, 0.44, 0x22262e, 0, 0.62, 0, false);              // jeans top
             const legL = part(g, 0.26, 0.45, 0.26, 0x22262e, -0.18, 0.22, 0, false);
             const legR = part(g, 0.26, 0.45, 0.26, 0x22262e, 0.18, 0.22, 0, false);
@@ -2376,11 +2479,20 @@
             part(spine, 0.1, 0.03, 0.01, 0x22c050, 0.25, 0.04, 0.115, false);                   // green cross
             part(spine, 0.03, 0.1, 0.01, 0x22c050, 0.25, 0.04, 0.115, false);
             limb(spine, 0.06, 0.1, 0xd8a07a, 0.67);                                            // neck
+            if (LEVELS[currentLevel].winter) { // puffy winter jacket with a fur-trimmed collar
+                const jk = new THREE.Mesh(GEO.girlParka || (GEO.girlParka = (() => { const t = capsuleGeo(0.24, 0.34, 0.23, 14).clone(); t.scale(1.05, 1, 0.75); return t; })()), mat(c.top));
+                jk.position.y = 0.36; spine.add(jk);
+                const fur = new THREE.Mesh(GEO.fur || (GEO.fur = new THREE.TorusGeometry(0.16, 0.06, 6, 14)), mat(0xf2ece0)); fur.rotation.x = Math.PI / 2; fur.position.y = 0.64; spine.add(fur);
+            }
             const head = new THREE.Group(); head.position.y = 0.7; spine.add(head);
             const face = new THREE.Mesh(boxGeo(0.32, 0.34, 0.3), faceMaterial('girl', 0xd8a07a));
             face.position.y = 0.17; head.add(face);
             const hcap = new THREE.Mesh(GEO.girlCap || (GEO.girlCap = new THREE.SphereGeometry(0.19, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.42)), mat(c.hair));
             hcap.scale.set(1, 0.95, 1); hcap.position.set(0, 0.2, -0.01); head.add(hcap);
+            if (LEVELS[currentLevel].winter) { // knit toque + pompom
+                const tq = new THREE.Mesh(GEO.girlToque || (GEO.girlToque = new THREE.SphereGeometry(0.2, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.45)), mat(c.accent)); tq.position.set(0, 0.24, -0.01); head.add(tq);
+                const pm = new THREE.Mesh(GEO.pom || (GEO.pom = new THREE.SphereGeometry(0.08, 10, 8)), mat(0xf4f4f4)); pm.position.set(0, 0.45, -0.01); head.add(pm);
+            }
             part(head, 0.34, 0.07, 0.05, c.hair, 0, 0.31, 0.15, false);                         // bangs
             if (c.style === 'long') { part(head, 0.36, 0.55, 0.08, c.hair, 0, 0.08, -0.16, false); part(head, 0.05, 0.42, 0.28, c.hair, -0.18, 0.14, -0.01, false); part(head, 0.05, 0.42, 0.28, c.hair, 0.18, 0.14, -0.01, false); }
             if (c.style === 'bob') { part(head, 0.4, 0.3, 0.1, c.hair, 0, 0.2, -0.16, false); part(head, 0.07, 0.3, 0.32, c.hair, -0.19, 0.2, 0, false); part(head, 0.07, 0.3, 0.32, c.hair, 0.19, 0.2, 0, false); }
@@ -2787,6 +2899,7 @@
             document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
             $('lvl-alley').addEventListener('click', () => selectLevel(0));
             $('lvl-river').addEventListener('click', () => selectLevel(1));
+            $('lvl-winter').addEventListener('click', () => selectLevel(2));
             $('btn-restart').addEventListener('click', () => startGame(currentLevel));
             $('btn-next').addEventListener('click', () => startGame(currentLevel + 1));
             $('btn-retry').addEventListener('click', () => startGame(currentLevel));
@@ -2812,7 +2925,7 @@
             $('hud').style.display = 'block';
             gameState = 'playing';
             clock.getDelta();
-            showToast(`LEVEL ${currentLevel + 1}: ${LEVELS[currentLevel].name}`, '#ffcc00');
+            showToast(`LEVEL ${currentLevel + 1}: ${LEVELS[currentLevel].name}` + (LEVELS[currentLevel].winter ? ' - STAY WARM BY THE FIRES' : ''), '#ffcc00');
         }
         function showMenu() {
             gameState = 'menu';
@@ -2857,6 +2970,7 @@
             relics = []; thugs = []; healers = [];
             dmgNums.forEach(d => d.el.remove()); dmgNums = [];
             newMap(firstSeed || (Math.random() * 1e9) | 0); firstSeed = 0;
+            slideVX = slideVZ = 0; warmT = 0;
             downed = false; downPhase = ''; reviver = null; thugGrace = 0; if (sparkles) sparkles.visible = false;
             $('rinsed-flash').classList.remove('on'); $('game-container').classList.remove('shake');
             hp = MAX_HP; stamina = MAX_STAMINA; relicCount = 0; thugsDowned = 0; playTime = 0;
@@ -2937,9 +3051,17 @@
             playSound('swing');
         }
 
+        let slideVX = 0, slideVZ = 0, warmT = 0;
         function updatePlayer(dt) {
             playTime += dt;
-            if (!window.__noDrain) hp -= HP_DRAIN_PER_SEC * dt;
+            const LVp = LEVELS[currentLevel];
+            let drain = HP_DRAIN_PER_SEC * (LVp.drain || 1);
+            if (LVp.winter) { // cold: faster drain, but standing near a burning barrel warms you up
+                const warm = fireSpots.some(([fx, fz]) => (fx - player.position.x) ** 2 + (fz - player.position.z) ** 2 < 3.6 * 3.6);
+                if (warm) { drain *= 0.25; if (warmT <= 0) showToast('WARMING UP BY THE FIRE', '#ffb060'); warmT = 6; }
+                warmT -= dt;
+            }
+            if (!window.__noDrain) hp -= drain * dt;
             if (hp <= 0) { goDown(); return; }
             const mag = Math.min(1, Math.hypot(input.x, input.y));
             const moving = mag > 0.12;
@@ -2958,7 +3080,9 @@
                 let mx = fx * input.y + rx * input.x, mz = fz * input.y + rz * input.x;
                 const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
                 const speed = (sprint ? RUN_SPEED : WALK_SPEED) * mag;
-                p.x += mx * speed * dt; p.z += mz * speed * dt;
+                const tr = onIce(p.x, p.z) ? 1.6 : 30; // traction: on ice AJ keeps sliding
+                slideVX += (mx * speed - slideVX) * Math.min(1, dt * tr); slideVZ += (mz * speed - slideVZ) * Math.min(1, dt * tr);
+                p.x += slideVX * dt; p.z += slideVZ * dt;
                 // smooth turn toward movement
                 const targetRot = Math.atan2(mx, mz);
                 let diff = targetRot - player.rotation.y;
@@ -2967,6 +3091,9 @@
                 walkCycle += dt * speed * 1.6;
             } else {
                 walkCycle *= 0.9;
+                const tr = onIce(p.x, p.z) ? 1.2 : 30;
+                slideVX -= slideVX * Math.min(1, dt * tr); slideVZ -= slideVZ * Math.min(1, dt * tr);
+                p.x += slideVX * dt; p.z += slideVZ * dt;
             }
             resolveCollision(p, PLAYER_RADIUS, p.y);
 
@@ -3233,6 +3360,7 @@
             }
             updateSteam(dt);
             updateWater(dt);
+            updateSnowFall(dt);
             if (hurtFlash > 0) { hurtFlash = Math.max(0, hurtFlash - dt * 2.5); }
             $('hurt-flash').style.opacity = hurtFlash;
             if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').style.opacity = 0; }
@@ -3298,6 +3426,7 @@
                 return true;
             },
             relicCloseupEnd: () => { window.__freezeCam = false; player.visible = true; },
+            onIce: () => onIce(player.position.x, player.position.z), iceZones: () => iceZones, fires: () => fireSpots,
             renderInfo: () => ({ cap: renderCap, w: renderer.domElement.width, h: renderer.domElement.height }),
             ajCloseup: () => { window.__camDist = 2.9; window.__camTargetY = 1.3; cameraAngleX = player.rotation.y; cameraAngleY = 0.1; updateCamera(1); },
             camReset: () => { delete window.__camDist; delete window.__camTargetY; },
