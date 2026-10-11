@@ -36,8 +36,6 @@
             width: 100%;
             height: 100%;
             display: block;
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
         }
 
         /* OVERLAYS */
@@ -489,18 +487,29 @@
         }
 
         /* --- INIT --- */
-        // N64-style: low internal resolution, upscaled with pixelated CSS
-        const RENDER_HEIGHT = 300;
-        function renderScale() { return Math.min(1, RENDER_HEIGHT / Math.max(1, window.innerHeight)); }
+        // early-PS2 look: ~540px internal height (native on most phones in landscape), smooth upscale
+        const RENDER_HEIGHT = 540;
+        let renderCap = RENDER_HEIGHT; // lowered automatically if the phone can't hold ~30 fps
+        function renderScale() { return Math.min(1, renderCap / Math.max(1, window.innerHeight)); }
+        // adaptive resolution: if the frame rate sags below ~28fps for 3s, step the internal height down (min 300)
+        let perfT = 0, perfN = 0;
+        function perfGuard(rawDt) {
+            if (gameState !== 'playing' || window.__noAdapt) { perfT = perfN = 0; return; }
+            perfT += rawDt; perfN++;
+            if (perfT < 3) return;
+            const fps = perfN / perfT; perfT = perfN = 0;
+            const cur = Math.min(renderCap, window.innerHeight);
+            if (fps < 28 && cur > 300) { renderCap = Math.max(300, Math.round(cur * 0.8)); onWindowResize(); }
+        }
         function init() {
             clock = new THREE.Clock();
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x1a1530);
-            scene.fog = new THREE.Fog(0x1a1530, 9, 48); // heavy GoldenEye-style distance fog
+            scene.fog = new THREE.Fog(0x1a1530, 16, 88); // lighter fog, longer draw distance
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 60);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 95);
 
-            renderer = new THREE.WebGLRenderer({ canvas: $('canvas3d'), antialias: false, powerPreference: 'high-performance' });
+            renderer = new THREE.WebGLRenderer({ canvas: $('canvas3d'), antialias: true, powerPreference: 'high-performance' });
             renderer.setPixelRatio(1);
             const s = renderScale();
             renderer.setSize(Math.round(window.innerWidth * s), Math.round(window.innerHeight * s), false);
@@ -546,7 +555,7 @@
             const T = {};
             T.tattooArm = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); ink(g, 16, 16, 16, 1); px(g, 3, 3, INK, 4, 3); px(g, 10, 9, INK, 4, 4); px(g, 2, 11, INK2, 3, 3); for (let y = 5; y < 16; y += 7) px(g, 0, y, INK, 16, 1); }, true);
             T.neck = pixTex(32, 16, (g) => { px(g, 0, 0, SK, 32, 16); ink(g, 32, 12, 22, 7); px(g, 0, 12, INK2, 32, 4); }, true);
-            T.skin = new THREE.MeshLambertMaterial({ color: 0xe9b494 });
+            T.skin = phong({ color: 0xe9b494 });
             T.skinTex = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); for (let i = 0; i < 10; i++) px(g, (i * 7) % 16, (i * 5) % 16, SK2); }, true);
             T.foot = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); px(g, 5, 4, INK, 6, 2); px(g, 6, 6, INK, 2, 4); px(g, 9, 7, INK2, 3, 2); px(g, 2, 13, SK2, 12, 1); }, true);
             // face: buzzed light-blond hair line, light brows, blue-grey eyes, stubbly beard
@@ -595,12 +604,12 @@
                 for (let x = 0; x < 32; x += 4) px(g, x, 15, '#1a2448', 2, 2);
             }, true);
             T.shortsFront = pixTex(32, 32, (g) => {
-                g.drawImage(T.shorts.image, 0, 0);
+                g.drawImage(T.shorts.image, 0, 0, 32, 32);
                 px(g, 0, 0, '#1a3a8a', 32, 4);                                            // waistband
                 px(g, 13, 3, '#f0f0f0', 1, 12); px(g, 18, 3, '#f0f0f0', 1, 10);            // white drawstrings
                 px(g, 12, 15, '#f0f0f0', 2, 2); px(g, 17, 13, '#f0f0f0', 2, 2);
             }, true);
-            const L = (map) => new THREE.MeshLambertMaterial({ map });
+            const L = (map) => phong({ map });
             const M = {};
             for (const k in T) M[k] = T[k].isTexture ? L(T[k]) : T[k];
             TEX.aj = M;
@@ -641,9 +650,9 @@
                 arms[s === 1 ? 'L' : 'R'] = sh;
             }
             // Melee Pipe Weapon (in his right hand)
-            pipeWeapon = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.1, 6), new THREE.MeshLambertMaterial({ color: 0x8a949c }));
+            pipeWeapon = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.1, 10), phong({ color: 0x8a949c }));
             player.add(pipeWeapon);
-            const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), new THREE.MeshLambertMaterial({ color: 0x5a6068 }));
+            const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), phong({ color: 0x5a6068 }));
             elbow.position.y = 0.55; pipeWeapon.add(elbow);
             player.userData.parts = { legL: legs[1], legR: legs[0], armL: arms.L, armR: arms.R, head, torso };
             player.position.set(0, 0, 0);
@@ -656,19 +665,25 @@
         // texture randomness uses its own stream so textures never change between maps
         let _tseed = 777;
         function srandT() { _tseed = (_tseed * 16807) % 2147483647; return (_tseed - 1) / 2147483646; }
-        function pixTex(w, h, draw, nearest) {
-            const c = document.createElement('canvas'); c.width = w; c.height = h;
-            const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+        // textures are drawn in "design pixels" and supersampled 2x (64 -> 128, 128 -> 256),
+        // then filtered linearly with mipmaps (smooth PS2-era look instead of chunky nearest-neighbour)
+        const TEX_SS = 2;
+        function pixTex(w, h, draw) {
+            const c = document.createElement('canvas'); c.width = w * TEX_SS; c.height = h * TEX_SS;
+            const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.scale(TEX_SS, TEX_SS);
             draw(g, w, h);
             const t = new THREE.CanvasTexture(c);
-            t.generateMipmaps = false;
-            t.minFilter = THREE.LinearFilter;
-            t.magFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
+            const pot = (n) => (n & (n - 1)) === 0;
+            t.generateMipmaps = pot(c.width) && pot(c.height);
+            t.minFilter = t.generateMipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+            t.magFilter = THREE.LinearFilter;
+            t.anisotropy = 2;
             t.wrapS = t.wrapT = THREE.RepeatWrapping;
             return t;
         }
         function px(g, x, y, c, w = 1, h = 1) { g.fillStyle = c; g.fillRect(x, y, w, h); }
-        function lambert(o) { return new THREE.MeshLambertMaterial(Object.assign({ dithering: true }, o)); }
+        function phong(o) { return new THREE.MeshPhongMaterial(Object.assign({ specular: 0x0c0c0c, shininess: 10, dithering: true }, o)); }
+        function lambert(o) { return phong(o); } // per-pixel shading (was Gouraud Lambert)
 
         function drawWindows(g, ge, frame) {
             for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
@@ -714,8 +729,8 @@
                 drawWindows(g, ge, kind === 'concrete' ? '#2a2c34' : '#2a2226');
             });
             const em = new THREE.CanvasTexture(e);
-            em.generateMipmaps = false; em.minFilter = THREE.LinearFilter; em.wrapS = em.wrapT = THREE.RepeatWrapping;
-            return lambert({ map, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 0.9 });
+            em.minFilter = THREE.LinearMipmapLinearFilter; em.wrapS = em.wrapT = THREE.RepeatWrapping;
+            return lambert({ map, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 1.15 });
         }
         function signTex(text, color) {
             return pixTex(128, 32, (g) => {
@@ -740,7 +755,7 @@
                 }
                 px(g, 10, 40, 'rgba(0,0,0,0.3)', 12, 8); // oil stain
             });
-            TEX.ground = lambert({ map: TEX.asphalt });
+            TEX.ground = phong({ map: TEX.asphalt, specular: 0x4a5468, shininess: 38 }); // wet-asphalt sheen under the lamps
             TEX.ground.map.repeat.set(40, 40);
             TEX.rust = lambert({ map: pixTex(64, 32, (g) => {
                 px(g, 0, 0, '#2a5a44', 64, 32);
@@ -887,13 +902,13 @@
         const LEVELS = [
             {
                 id: 'alley', name: 'ALLEYWAY', sub: 'Alleyway Adventure', river: false,
-                bg: 0x1a1530, fogNear: 9, fogFar: 48, hemiSky: 0x8a86c8, hemiGround: 0x2a1a22, hemiI: 0.75, amb: 0x30283c, ambI: 0.45, moon: 0xa8b4ff, moonI: 0.5,
+                bg: 0x1a1530, fogNear: 16, fogFar: 88, hemiSky: 0x8a86c8, hemiGround: 0x2a1a22, hemiI: 0.75, amb: 0x30283c, ambI: 0.45, moon: 0xa8b4ff, moonI: 0.5,
                 lamp: 0xffb060, pool: 0x8a5a24, warm: 0xffa050, barrels: 7,
                 signs: [['RINSED', '#2ad8ff', 0x2ad8ff], ['BAR', '#ff2a8a', 0xff2a8a], ['PAWN', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['MOTEL', '#ff2a8a', 0xff2a8a], ['NOODLE', '#2ad8ff', 0x2ad8ff], ['ARCADE', '#ffd02a', 0xffd02a], ['TATTOO', '#b04aff', 0xb04aff], ['LIQUOR', '#6aff3a', 0x6aff3a]]
             },
             {
                 id: 'river', name: 'RIVERSIDE', sub: 'Riverside Camp', river: true,
-                bg: 0x34203a, fogNear: 8, fogFar: 46, hemiSky: 0xc08a90, hemiGround: 0x1a1420, hemiI: 0.7, amb: 0x3a2a34, ambI: 0.45, moon: 0xffa080, moonI: 0.35,
+                bg: 0x34203a, fogNear: 15, fogFar: 84, hemiSky: 0xc08a90, hemiGround: 0x1a1420, hemiI: 0.7, amb: 0x3a2a34, ambI: 0.45, moon: 0xffa080, moonI: 0.35,
                 lamp: 0xff9030, pool: 0x9a5010, warm: 0xff8a28, barrels: 11,
                 signs: [['PIER 9', '#2ad8ff', 0x2ad8ff], ['MOTEL', '#ff2a8a', 0xff2a8a], ['DINER', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['LIQUOR', '#ff2a8a', 0xff2a8a], ['CAFE', '#2ad8ff', 0x2ad8ff], ['TAXI', '#ffd02a', 0xffd02a], ['BRIDGE ST', '#b04aff', 0xb04aff], ['HOTEL', '#6aff3a', 0x6aff3a]]
             }
@@ -919,7 +934,7 @@
                 for (let k = 0; k < 9; k++) { const y = srandT() * 64 | 0, x = srandT() * 64 | 0; px(g, x, y, '#3a7a88', 8 + srandT() * 8 | 0, 1); }
             });
             TEX.waterTex.repeat.set(36, 5);
-            TEX.water = new THREE.MeshLambertMaterial({ map: TEX.waterTex, emissive: 0x0a1a22, emissiveIntensity: 1 });
+            TEX.water = phong({ map: TEX.waterTex, emissive: 0x0a1a22, emissiveIntensity: 1 });
             TEX.waterHiTex = pixTex(64, 64, (g) => {
                 g.clearRect(0, 0, 64, 64);
                 for (let k = 0; k < 14; k++) { const y = srandT() * 64 | 0, x = srandT() * 64 | 0; px(g, x, y, 'rgba(255,170,90,0.55)', 4 + srandT() * 10 | 0, 1); }
@@ -1304,7 +1319,7 @@
                 sign.position.set(x, y, z);
                 sign.rotation.y = Math.atan2(s.nx, s.nz);
                 cityGroup.add(sign);
-                const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: hex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+                const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: hex, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
                 halo.position.set(x + s.nx * 0.3, y, z + s.nz * 0.3); halo.scale.set(6, 2.6, 1);
                 cityGroup.add(halo);
                 // coloured spill on the wet ground
@@ -1367,7 +1382,7 @@
                 if (srand() < 0.18) {
                     const u = (srand() - 0.5) * 5;
                     const [x, , z] = W(s, u, 0, 0.14);
-                    pipes.add(GEO.pipe || (GEO.pipe = new THREE.CylinderGeometry(0.1, 0.1, 1, 6)), x, s.h / 2, z, 0, 0, 0, 1, s.h, 1);
+                    pipes.add(GEO.pipe || (GEO.pipe = new THREE.CylinderGeometry(0.1, 0.1, 1, 10)), x, s.h / 2, z, 0, 0, 0, 1, s.h, 1);
                     if (srand() < 0.5) { const [x2, , z2] = W(s, 0, 0, 0.18); pipes.add(GEO.pipe, x2, 2.8 + srand() * 2, z2, ry, Math.PI / 2, 0, 1.3, 6, 1.3); }
                 }
                 // wall AC unit
@@ -1440,9 +1455,9 @@
 
             // street lamps: instanced poles/arms, glow sprites as one Points cloud, warm light pools on the ground
             if (lampSpots.length) {
-                const poles = new THREE.InstancedMesh(GEO.pole || (GEO.pole = new THREE.CylinderGeometry(0.08, 0.12, 5, 6)), metalMat, lampSpots.length);
+                const poles = new THREE.InstancedMesh(GEO.pole || (GEO.pole = new THREE.CylinderGeometry(0.08, 0.12, 5, 10)), metalMat, lampSpots.length);
                 const arms = new THREE.InstancedMesh(unitBox(), metalMat, lampSpots.length);
-                const heads = new THREE.InstancedMesh(GEO.lampHead || (GEO.lampHead = new THREE.CylinderGeometry(0.12, 0.35, 0.3, 6)), new THREE.MeshBasicMaterial({ color: new THREE.Color(LV.lamp).lerp(new THREE.Color(0xffffff), 0.4) }), lampSpots.length);
+                const heads = new THREE.InstancedMesh(GEO.lampHead || (GEO.lampHead = new THREE.CylinderGeometry(0.12, 0.35, 0.3, 10)), new THREE.MeshBasicMaterial({ color: new THREE.Color(LV.lamp).lerp(new THREE.Color(0xffffff), 0.4) }), lampSpots.length);
                 const pools = new THREE.InstancedMesh(GEO.pool || (GEO.pool = new THREE.PlaneGeometry(1, 1)), TEX.pool, lampSpots.length);
                 [poles, arms, heads, pools].forEach(m => m.userData.sharedGeo = true);
                 const glowPos = [];
@@ -1456,7 +1471,7 @@
                 });
                 cityGroup.add(poles, arms, heads, pools);
                 const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(glowPos, 3));
-                cityGroup.add(new THREE.Points(gg, new THREE.PointsMaterial({ map: TEX.glow, color: LV.lamp, size: 3.2, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })));
+                cityGroup.add(new THREE.Points(gg, new THREE.PointsMaterial({ map: TEX.glow, color: LV.lamp, size: 3.6, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })));
                 // two real warm lights: the lamps closest to spawn
                 lampSpots.slice().sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1])).slice(0, 2).forEach(([x, z, nx, nz]) => {
                     const pl = new THREE.PointLight(LV.warm, 1.3, 16, 1.5);
@@ -1658,11 +1673,19 @@
         const SHARED = {};
         function sharedAssets() {
             if (SHARED.ready) return SHARED;
-            SHARED.relicGeo = new THREE.OctahedronGeometry(0.42, 0);
-            SHARED.relicMat = new THREE.MeshLambertMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 0.9 });
-            SHARED.haloMat = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffc020, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
+            // relic: ~0.5m thin white open-ended tube (cigarette-like), charred black end, hollow ends
+            SHARED.relicPaperGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.42, 14, 1, true).translate(0, -0.04, 0);
+            SHARED.relicInnerGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.5, 14, 1, true);
+            SHARED.relicCharGeo = new THREE.CylinderGeometry(0.047, 0.046, 0.08, 14, 1, true).translate(0, 0.21, 0);
+            SHARED.relicRimGeo = new THREE.RingGeometry(0.036, 0.047, 14).rotateX(-Math.PI / 2);
+            SHARED.relicMat = phong({ color: 0xf4f2ec, emissive: 0x2a2826, specular: 0x333333, shininess: 20, side: THREE.DoubleSide });
+            SHARED.relicInnerMat = phong({ color: 0x3a3430, side: THREE.DoubleSide });
+            SHARED.relicCharMat = phong({ color: 0x141110, emissive: 0x0a0605, side: THREE.DoubleSide });
+            SHARED.relicAshMat = phong({ color: 0x2a2624, side: THREE.DoubleSide });
+            SHARED.emberMat = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff6a20, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+            SHARED.haloMat = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xfff0d8, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
             SHARED.ringGeo = new THREE.RingGeometry(0.55, 0.8, 16);
-            SHARED.ringMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
+            SHARED.ringMat = new THREE.MeshBasicMaterial({ color: 0xfff0d0, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
             SHARED.box = {};
             SHARED.mat = {};
             SHARED.hpBarGeo = new THREE.PlaneGeometry(0.8, 0.08);
@@ -1670,7 +1693,7 @@
             SHARED.hpMat = new THREE.MeshBasicMaterial({ color: 0xff2244 });
             SHARED.crossMat = new THREE.MeshBasicMaterial({ color: 0x39ff7a });
             SHARED.skirtGeo = new THREE.ConeGeometry(0.46, 0.5, 4, 1, true);
-            SHARED.batGeo = new THREE.CylinderGeometry(0.045, 0.085, 1.0, 6);
+            SHARED.batGeo = new THREE.CylinderGeometry(0.045, 0.085, 1.0, 10);
             SHARED.ready = true;
             return SHARED;
         }
@@ -1680,7 +1703,7 @@
         }
         function mat(color, extra) {
             const k = color + (extra ? JSON.stringify(extra) : '');
-            return SHARED.mat[k] || (SHARED.mat[k] = new THREE.MeshLambertMaterial(Object.assign({ color: color }, extra || {})));
+            return SHARED.mat[k] || (SHARED.mat[k] = phong(Object.assign({ color: color }, extra || {})));
         }
         function part(group, w, h, d, color, x, y, z, shadow) {
             const m = new THREE.Mesh(boxGeo(w, h, d), mat(color));
@@ -1731,7 +1754,15 @@
             sharedAssets();
             mapInfo.relics.forEach(([x, z, y]) => {
                 const g = new THREE.Group();
-                const gem = new THREE.Mesh(SHARED.relicGeo, SHARED.relicMat);
+                const gem = new THREE.Group();
+                const tube = new THREE.Group();
+                tube.add(new THREE.Mesh(SHARED.relicPaperGeo, SHARED.relicMat), new THREE.Mesh(SHARED.relicInnerGeo, SHARED.relicInnerMat), new THREE.Mesh(SHARED.relicCharGeo, SHARED.relicCharMat));
+                const rimTop = new THREE.Mesh(SHARED.relicRimGeo, SHARED.relicAshMat); rimTop.position.y = 0.25;
+                const rimBot = new THREE.Mesh(SHARED.relicRimGeo, SHARED.relicMat); rimBot.position.y = -0.25; rimBot.rotation.x = Math.PI;
+                const ember = new THREE.Sprite(SHARED.emberMat); ember.position.y = 0.27; ember.scale.set(0.22, 0.22, 1);
+                tube.add(rimTop, rimBot, ember);
+                tube.rotation.z = Math.PI / 2 - 0.25; // lies almost flat, charred end slightly raised
+                gem.add(tube);
                 const ring = new THREE.Mesh(SHARED.ringGeo, SHARED.ringMat);
                 ring.rotation.x = -Math.PI / 2;
                 ring.position.y = (y > 2 ? y - 1.05 : 0.03) - y;
@@ -1740,7 +1771,7 @@
                 g.add(gem, ring, halo);
                 g.position.set(x, y, z);
                 dynamicGroup.add(g);
-                relics.push({ mesh: g, gem, baseY: y, taken: false, phase: Math.random() * 6 });
+                relics.push({ mesh: g, gem, halo, baseY: y, taken: false, phase: Math.random() * 6 });
             });
             mapInfo.thugs.forEach(([x, z], i) => thugs.push(makeThug(x, z, i)));
             mapInfo.girls.forEach(([x, z], i) => healers.push(makeGirl(x, z, GIRL_LOOKS[i % GIRL_LOOKS.length])));
@@ -1843,14 +1874,14 @@
                     for (let i = 0; i < 16; i++) px(g, 3 + (i * 7) % 10, 10 + (i * 3) % 5, 'rgba(120,90,60,0.5)', 1, 1);
                 }
             }, true);
-            const s = new THREE.MeshLambertMaterial({ color: skin });
-            const f = new THREE.MeshLambertMaterial({ map: tex });
+            const s = phong({ color: skin });
+            const f = phong({ map: tex });
             return (FACES[key] = [s, s, s, s, f, s]);
         }
         function n64ifyCharacter(root) {
             root.traverse(o => {
                 if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
-                    o.material = new THREE.MeshLambertMaterial({ color: o.material.color });
+                    o.material = phong({ color: o.material.color });
                 }
             });
         }
@@ -1864,7 +1895,7 @@
         }
         function limbGeo(r, len) {
             const k = 'limb' + r + 'x' + len;
-            return GEO[k] || (GEO[k] = new THREE.CylinderGeometry(r * 0.85, r, len, 6));
+            return GEO[k] || (GEO[k] = new THREE.CylinderGeometry(r * 0.85, r, len, 10));
         }
         function limb(parent, r, len, color, y) {
             const m = new THREE.Mesh(limbGeo(r, len), mat(color));
@@ -2703,6 +2734,7 @@
         /* --- CAMERA --- */
         const _camTarget = new THREE.Vector3(), _camDesired = new THREE.Vector3();
         function updateCamera(dt) {
+            if (window.__freezeCam) return;
             const p = player.position;
             _camTarget.set(p.x, p.y + 1.7, p.z);
             // while AJ is down, swing up to a high angle so the revive is visible over the alley walls
@@ -2738,7 +2770,9 @@
         /* --- GAME LOOP --- */
         function animate() {
             requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.05);
+            const rawDt = clock.getDelta();
+            const dt = Math.min(rawDt, 0.05);
+            perfGuard(rawDt);
             elapsed += dt;
 
             if (gameState === 'playing') {
@@ -2762,8 +2796,10 @@
             // relic spin
             for (const r of relics) {
                 if (r.taken) continue;
-                r.gem.rotation.y += dt * 2.5;
-                r.gem.rotation.x = Math.sin(elapsed * 1.3 + r.phase) * 0.3;
+                r.gem.rotation.y += dt * 1.1; // slow spin
+                r.gem.rotation.x = Math.sin(elapsed * 1.3 + r.phase) * 0.12;
+                const tw = 1.5 + Math.sin(elapsed * 3 + r.phase) * 0.25 + (Math.sin(elapsed * 11 + r.phase * 3) > 0.92 ? 0.35 : 0); // soft twinkle
+                r.halo.scale.set(tw, tw, 1);
                 r.gem.position.y = Math.sin(elapsed * 2 + r.phase) * 0.15;
             }
             // neon flicker + fires + steam
@@ -2820,6 +2856,19 @@
             },
             freezeDrain: (on) => { window.__noDrain = on; },
             level: () => currentLevel,
+            relicCloseup: () => { // camera right next to the nearest ground relic (AJ hidden) for a screenshot
+                const r = relics.filter(r => !r.taken && r.baseY < 2).sort((a, b) => a.mesh.position.distanceTo(player.position) - b.mesh.position.distanceTo(player.position))[0];
+                if (!r) return false;
+                const p = r.mesh.position, g = new THREE.Vector3(); r.gem.getWorldPosition(g);
+                window.__freezeCam = true; player.visible = false;
+                let best = null;
+                for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, cx = p.x + Math.sin(a) * 0.95, cz = p.z + Math.cos(a) * 0.95; if (!pointInWalls(cx, 1.4, cz, 0.2, true)) { best = [cx, cz]; break; } }
+                if (!best) return false;
+                camera.position.set(best[0], g.y + 0.35, best[1]); camera.lookAt(g.x, g.y, g.z);
+                return true;
+            },
+            relicCloseupEnd: () => { window.__freezeCam = false; player.visible = true; },
+            renderInfo: () => ({ cap: renderCap, w: renderer.domElement.width, h: renderer.domElement.height }),
             ajCloseup: () => { window.__camDist = 2.9; window.__camTargetY = 1.3; cameraAngleX = player.rotation.y; cameraAngleY = 0.1; updateCamera(1); },
             camReset: () => { delete window.__camDist; delete window.__camTargetY; },
             // place AJ ~d metres from a target with a clear camera line behind him, facing the target

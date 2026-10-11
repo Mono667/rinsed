@@ -9,6 +9,7 @@ const { chromium, devices } = require('playwright');
   const S = () => page.evaluate(() => RINSED.state());
   const W = (ms) => page.waitForTimeout(ms);
   const ok = (name, cond) => console.log((cond ? 'PASS ' : 'FAIL ') + name);
+  await page.addInitScript(() => { window.__noAdapt = true; });
   await page.goto('http://localhost:8765/index.html?seed=' + (process.env.SEED || '424242'));
   await W(2500);
   const vp = page.viewportSize();
@@ -37,6 +38,23 @@ const { chromium, devices } = require('playwright');
   await page.tap('#btn-hit'); await W(120);
   await page.screenshot({ path: '../shot-aj-swing.png' });
   await page.evaluate(() => RINSED.camReset());
+  // relic close-up: pick a ground relic, put AJ next to it, camera low and close
+  const framed = await page.evaluate(() => {
+    const spots = RINSED.relicSpots().filter(s => !(s[2] > 2));
+    for (const [x, z] of spots) for (const d of [2.2, 2.8, 3.4]) if (RINSED.frame(x, z, d)) { window.__camDist = 1.9; window.__camTargetY = 1.0; cameraAngleY = 0.12; player.position.x += (x - player.position.x) * 0.0; return [x, z, d]; }
+    return null;
+  });
+  console.log('relic framed', JSON.stringify(framed));
+  await page.evaluate(() => RINSED.camReset());
+  await W(300);
+  console.log('relic closeup', await page.evaluate(() => RINSED.relicCloseup()));
+  await W(700);
+  await page.screenshot({ path: '../shot-relic.png' });
+  await page.evaluate(() => RINSED.relicCloseupEnd());
+  // general level-1 gameplay shot
+  await page.evaluate(() => { const [x, z] = RINSED.relicSpots()[1]; RINSED.frame(x, z, 6); });
+  await W(900);
+  await page.screenshot({ path: '../shot-game.png' });
   // clear level 1 -> NEXT LEVEL
   await page.evaluate(() => RINSED.collectAll()); await W(1600);
   ok('level1 won + next visible', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
@@ -81,7 +99,7 @@ const { chromium, devices } = require('playwright');
   await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
   ok('back to alley', (await page.evaluate(() => RINSED.level())) === 0);
   const fps = await page.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); (function f() { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else r(n / 2); })(); }));
-  console.log('fps (swiftshader, no GPU)', fps);
+  console.log('fps (swiftshader, no GPU)', fps, JSON.stringify(await page.evaluate(() => RINSED.renderInfo())));
   console.log('ERRORS:', errors.length ? errors : 'none');
   await browser.close();
 })();
