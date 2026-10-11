@@ -8,81 +8,80 @@ const { chromium, devices } = require('playwright');
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   const S = () => page.evaluate(() => RINSED.state());
   const W = (ms) => page.waitForTimeout(ms);
+  const ok = (name, cond) => console.log((cond ? 'PASS ' : 'FAIL ') + name);
   await page.goto('http://localhost:8765/index.html?seed=' + (process.env.SEED || '424242'));
   await W(2500);
-  const vp = page.viewportSize(); console.log('viewport', vp);
-  await page.screenshot({ path: '../shot-start.png' });
+  const vp = page.viewportSize();
+  await page.screenshot({ path: '../shot-levelselect.png' });
+  // ---- Level 1 ----
   await page.tap('#btn-start'); await W(600);
-  console.log('after start', JSON.stringify(await S()));
-  console.log('reachable', JSON.stringify(await page.evaluate(() => RINSED.reachable())));
+  let st = await S();
+  ok('level1 started', st.gameState === 'playing' && (await page.evaluate(() => RINSED.level())) === 0);
+  ok('level1 reachable', (await page.evaluate(() => RINSED.reachable())).every(Boolean));
   const cdp = await ctx.newCDPSession(page);
   const T = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
   const jx = 110, jy = vp.height - 95;
   await T('touchStart', [{ x: jx, y: jy, id: 1 }]);
   for (let i = 1; i <= 10; i++) { await T('touchMove', [{ x: jx, y: jy - i * 6, id: 1 }]); await W(30); }
-  await W(1000);
+  await W(900);
   const cx = vp.width - 250, cy = 120;
   await T('touchStart', [{ x: jx, y: jy - 60, id: 1 }, { x: cx, y: cy, id: 2 }]);
   for (let i = 1; i <= 10; i++) { await T('touchMove', [{ x: jx, y: jy - 60, id: 1 }, { x: cx - i * 8, y: cy + i * 2, id: 2 }]); await W(30); }
   await T('touchEnd', []);
-  await W(200);
   for (const id of ['#btn-run', '#btn-jump', '#btn-hit', '#btn-hit']) { await page.tap(id); await W(300); }
-  await T('touchStart', [{ x: jx, y: jy, id: 3 }]); await T('touchMove', [{ x: jx + 20, y: jy - 55, id: 3 }]);
-  await W(1200); await T('touchEnd', []);
-  const s1 = await S(); console.log('after touch input', JSON.stringify({ pos: s1.pos, hp: s1.hp, stamina: s1.stamina, calls: s1.calls, tris: s1.tris }));
-  await page.evaluate(() => RINSED.freezeDrain(true));
-  // alley gameplay shot: stand at a relic spot looking down the alley
-  console.log('frame relic', await page.evaluate(() => { const r = RINSED.relicSpots()[2]; const ok = RINSED.frame(r[0], r[1], 5) || RINSED.frame(r[0], r[1], 3.5) || RINSED.frame(r[0], r[1], 2.5); RINSED.setCam(cameraAngleX + 0.35, 0.22); return ok; }));
+  const s1 = await S(); ok('touch moved AJ', Math.hypot(s1.pos[0], s1.pos[2]) > 2);
+  // AJ close-up
+  await page.evaluate(() => { RINSED.freezeDrain(true); RINSED.tp(0, 0); player.rotation.y = 0.5; RINSED.ajCloseup(); });
+  await W(800);
+  await page.screenshot({ path: '../shot-aj.png' });
+  await page.tap('#btn-hit'); await W(120);
+  await page.screenshot({ path: '../shot-aj-swing.png' });
+  await page.evaluate(() => RINSED.camReset());
+  // clear level 1 -> NEXT LEVEL
+  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  ok('level1 won + next visible', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
+  await page.tap('#btn-next'); await W(900);
+  st = await S();
+  ok('level transition -> riverside', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
+  ok('level2 reachable', (await page.evaluate(() => RINSED.reachable())).every(Boolean));
+  console.log('L2 state', JSON.stringify({ seed: st.seed, walls: st.walls, calls: st.calls, tris: st.tris, geos: st.geos }), await page.textContent('#level-name'));
+  // can't walk into the river: push north across the river line (not on a bridge)
+  await page.evaluate(() => { RINSED.freezeDrain(true); RINSED.tp(-15, 18, Math.PI); });
+  await T('touchStart', [{ x: jx, y: jy, id: 4 }]); await T('touchMove', [{ x: jx, y: jy - 55, id: 4 }]);
+  await W(2500); await T('touchEnd', []);
+  st = await S(); ok('blocked by river (z<=21)', st.pos[2] <= 21.2); console.log('  pos after pushing into river', st.pos.map(v => v.toFixed(1)).join(','));
+  // riverside gameplay screenshot: on the riverwalk looking along the river towards the camp
+  await page.evaluate(() => { RINSED.tp(-27, 17, -Math.PI / 2 + 0.35); RINSED.setCam(-Math.PI / 2 + 0.35, 0.3); });
+  await W(900);
+  await page.screenshot({ path: '../shot-river.png' });
+  await page.evaluate(() => { RINSED.tp(0, 8, Math.PI); RINSED.setCam(Math.PI + 0.3, 0.25); });
   await W(700);
-  await page.screenshot({ path: '../shot-game.png' });
-  // near a girl -> bubble
-  console.log('frame girl', await page.evaluate(() => { const g = RINSED.girlSpots()[0]; const ok = RINSED.frame(g[0], g[1], 3.4); RINSED.setCam(cameraAngleX + 0.5, 0.2); return ok; }));
-  await W(1200);
-  await page.screenshot({ path: '../shot-girl.png' });
-  console.log('bubble text', await page.evaluate(() => [...document.querySelectorAll('.bubble')].map(b => b.innerText + ' | op=' + b.style.opacity)));
-  // go down -> RINSED flash -> revive
-  await page.evaluate(() => { const g = RINSED.girlSpots()[0]; RINSED.frame(g[0], g[1], 9); healers.forEach(h => h.healCd = 30); });
-  await W(300);
-  await page.evaluate(() => RINSED.hurt(500));
-  await W(350);
-  await page.screenshot({ path: '../shot-rinsed.png' });
-  let st;
+  await page.screenshot({ path: '../shot-river2.png' });
+  // revive works on level 2
+  await page.evaluate(() => { healers.forEach(h => h.healCd = 30); invuln = 0; RINSED.hurt(500); });
   for (let k = 0; k < 40; k++) { st = await S(); if (st.downPhase === 'reviving') break; await W(250); }
-  console.log('revive phase', st.downPhase, JSON.stringify(st.girls));
-  await page.evaluate(() => RINSED.clearYaw());
-  console.log('toast opacity on arrival', await page.evaluate(() => $('toast').style.opacity));
-  await W(2600);
-  st = await S(); console.log('mid revive hp', st.hp, st.downPhase);
-  await page.screenshot({ path: '../shot-revive.png' });
-  await W(1800);
-  st = await S(); console.log('later revive hp', st.hp, st.downPhase);
-  const nearThugs = () => page.evaluate(() => thugs.filter(t => !t.dead && t.mesh.position.distanceTo(player.position) < 2).length);
-  for (let k = 0; k < 20; k++) { st = await S(); if (!st.downed) break; await W(300); }
-  console.log('after revive', JSON.stringify({ hp: st.hp, downed: st.downed, gs: st.gameState }), 'grace', await page.evaluate(() => thugGrace.toFixed(2)), 'thugs within 2m', await nearThugs());
-  // no medics left -> game over
-  await page.evaluate(() => healers.forEach(h => h.reviveCd = 999));
-  await W(2200);
-  await page.evaluate(() => { invuln = 0; RINSED.hurt(500); });
-  await W(2600);
-  st = await S(); console.log('gameover?', st.gameState, await page.isVisible('#gameover-screen'), await page.textContent('#gameover-screen .title-logo'));
-  await page.screenshot({ path: '../shot-gameover.png' });
-  // restarts: new seed each time, no geometry growth
-  const geos = [];
-  for (let k = 0; k < 3; k++) {
-    await page.tap(k === 0 ? '#btn-retry' : '#btn-retry'); await W(700);
-    st = await S(); geos.push([st.seed, st.geos, st.sceneObjs, st.walls, st.thugs, st.girls.length, st.hp]);
-    await page.evaluate(() => { RINSED.freezeDrain(false); invuln = 0; healers.forEach(h => h.reviveCd = 999); RINSED.hurt(500); });
-    await W(2400);
-  }
-  console.log('restarts [seed, geometries, sceneChildren, walls, thugs, girls, hp]', JSON.stringify(geos));
-  await page.tap('#btn-retry'); await W(600);
-  console.log('reachable2', JSON.stringify(await page.evaluate(() => RINSED.reachable())));
-  await page.evaluate(() => RINSED.collectAll()); await W(1500);
-  st = await S(); console.log('won?', st.gameState, await page.isVisible('#win-screen'));
-  await page.tap('#btn-restart'); await W(600);
-  st = await S(); console.log('after restart', st.gameState, st.seed, st.relicCount, st.hp);
+  ok('level2 revive started', st.downPhase === 'reviving');
+  await W(7500); st = await S(); ok('level2 revived to 60', !st.downed && Math.round(st.hp) >= 59);
+  // restart level 2 (game over -> try again) => new seed, still riverside, no leaks
+  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); await W(2600);
+  ok('level2 game over', (await S()).gameState === 'dead');
+  const g0 = (await S()).geos;
+  await page.tap('#btn-retry'); await W(900);
+  st = await S(); ok('restart stays on riverside with new seed', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
+  console.log('  geometries before/after restart', g0, st.geos, 'seed', st.seed);
+  // menu -> level select -> alley again
+  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); await W(2600);
+  await page.tap('#gameover-screen .btn-menu'); await W(500);
+  ok('menu visible', await page.isVisible('#start-screen'));
+  await page.tap('#lvl-river'); await W(200); await page.tap('#btn-start'); await W(800);
+  ok('level select riverside starts L2', (await page.evaluate(() => RINSED.level())) === 1);
+  await page.evaluate(() => RINSED.collectAll()); await W(1600);
+  ok('L2 win hides next', (await S()).gameState === 'won' && !(await page.isVisible('#btn-next')));
+  await page.tap('#win-screen .btn-menu'); await W(400);
+  await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
+  ok('back to alley', (await page.evaluate(() => RINSED.level())) === 0);
   const fps = await page.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); (function f() { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else r(n / 2); })(); }));
-  console.log('fps (swiftshader, no GPU)', fps, 'drawcalls', (await S()).calls);
+  console.log('fps (swiftshader, no GPU)', fps);
   console.log('ERRORS:', errors.length ? errors : 'none');
   await browser.close();
 })();

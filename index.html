@@ -41,6 +41,7 @@
         }
 
         /* OVERLAYS */
+        .overlay .btn { margin-top: 12px; }
         .overlay {
             position: absolute;
             top: 0;
@@ -233,6 +234,22 @@
         .howto b { color: #ff5500; }
         .stat-line { font-size: clamp(1rem, 3vw, 1.5rem); color: #ffcc00; letter-spacing: 2px; margin-bottom: 10px; }
         #rotate-hint { display: none; }
+        @media (max-height: 460px) {
+            .overlay .title-logo { font-size: clamp(2.2rem, 11vh, 4rem); }
+            .overlay .subtitle { font-size: 0.85rem; margin: 2px 0 6px; }
+            .overlay .howto { font-size: 0.72rem; line-height: 1.45; margin: 4px 0; }
+            .overlay .btn { padding: 9px 30px; font-size: 1.15rem; margin-top: 8px; }
+            .lvl-btn { margin-top: 6px; padding: 6px 16px; font-size: 0.95rem; }
+        }
+        .lvl-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center; }
+        .lvl-btn {
+            margin-top: 12px; padding: 8px 18px; border-radius: 22px; cursor: pointer;
+            font-family: 'Impact', 'Segoe UI', Arial, sans-serif; font-size: clamp(0.9rem, 2.4vw, 1.2rem); letter-spacing: 2px;
+            color: #9ab; background: rgba(20, 26, 40, 0.9); border: 2px solid rgba(0, 240, 255, 0.35);
+        }
+        .lvl-btn.sel { color: #fff; border-color: #00f0ff; box-shadow: 0 0 16px rgba(0, 240, 255, 0.6); background: rgba(0, 90, 120, 0.6); }
+        .btn-alt { background: linear-gradient(135deg, #2a3048, #3a4060); box-shadow: 0 0 14px rgba(0, 240, 255, 0.3); font-size: clamp(1rem, 2.4vw, 1.3rem); padding: 12px 26px; }
+        .level-row { font-size: 0.75rem; color: #00f0ff; letter-spacing: 2px; }
 
         /* SPEECH BUBBLES (girls speak Japanese, English subtitle) */
         .bubble {
@@ -325,6 +342,7 @@
             </div>
             <div class="relic-row">RELICS <span id="relic-count">0</span>/10</div>
             <div class="medic-row">MEDICS <span id="medic-count">4</span></div>
+            <div class="level-row" id="level-name">LV1 ALLEYWAY</div>
         </div>
         <div id="toast"></div>
         <div id="hurt-flash"></div>
@@ -339,29 +357,40 @@
 
     <div id="start-screen" class="overlay">
         <div class="title-logo">RINSED</div>
-        <div class="subtitle">Alleyway Adventure</div>
+        <div class="subtitle">Back Street Relic Run</div>
         <div class="howto">
-            Recover the <b>10 glowing relics</b> hidden in the alleys.<br>
+            Recover the <b>10 glowing relics</b> on each level &mdash; pick a level below.<br>
             Thugs with bats roam the back streets &mdash; swing the pipe to put them down.<br>
             You're bleeding out slowly &mdash; swing by the alley medics to patch up.<br>
             Go down and a medic will run over and revive you (if one is ready).<br>
             <b>Left thumb</b> move &bull; <b>Right thumb</b> drag camera &bull; <b>HIT / JUMP / RUN</b>
+        </div>
+        <div class="lvl-row">
+            <button id="lvl-alley" class="lvl-btn sel">1 &bull; ALLEYWAY</button>
+            <button id="lvl-river" class="lvl-btn">2 &bull; RIVERSIDE</button>
         </div>
         <button id="btn-start" class="btn">Start</button>
     </div>
 
     <div id="win-screen" class="overlay" style="display:none;">
         <div class="title-logo">RINSED!</div>
-        <div class="subtitle">All relics recovered</div>
+        <div class="subtitle" id="win-sub">Level cleared</div>
         <div class="stat-line" id="win-stats"></div>
-        <button id="btn-restart" class="btn">Play Again</button>
+        <div class="lvl-row">
+            <button id="btn-next" class="btn">Next Level</button>
+            <button id="btn-restart" class="btn btn-alt">Play Again</button>
+            <button class="btn btn-alt btn-menu">Levels</button>
+        </div>
     </div>
 
     <div id="gameover-screen" class="overlay" style="display:none;">
         <div class="title-logo">RINSED</div>
         <div class="subtitle">No medic left to patch you up</div>
         <div class="stat-line" id="lose-stats"></div>
-        <button id="btn-retry" class="btn">Try Again</button>
+        <div class="lvl-row">
+            <button id="btn-retry" class="btn">Try Again</button>
+            <button class="btn btn-alt btn-menu">Levels</button>
+        </div>
     </div>
 
     <div id="rotate-hint">Rotate your phone to landscape</div>
@@ -477,8 +506,8 @@
             renderer.setSize(Math.round(window.innerWidth * s), Math.round(window.innerHeight * s), false);
             renderer.shadowMap.enabled = false; // blob shadows instead (cheaper, more N64)
 
-            scene.add(new THREE.HemisphereLight(0x8a86c8, 0x2a1a22, 0.75));
-            scene.add(new THREE.AmbientLight(0x30283c, 0.45));
+            hemiLight = new THREE.HemisphereLight(0x8a86c8, 0x2a1a22, 0.75); scene.add(hemiLight);
+            ambLight = new THREE.AmbientLight(0x30283c, 0.45); scene.add(ambLight);
             moonLight = new THREE.DirectionalLight(0xa8b4ff, 0.5);
             moonLight.position.set(10, 28, 8);
             scene.add(moonLight);
@@ -503,74 +532,120 @@
             updateHUD();
             animate();
         }
-        /* --- CHARACTER: AJ --- */
+        /* --- CHARACTER: AJ (N64 voxel build from Craig's reference photo) --- */
+        function ajTextures() {
+            if (TEX.aj) return TEX.aj;
+            const SK = '#e9b494', SK2 = '#d89c7c', INK = '#26283a', INK2 = '#3a3e56', HAIR = '#dcc488', HAIR2 = '#bba068', BEARD = '#a88a5c';
+            const ink = (g, w, h, density, seedOff) => { // pixel tattoo scribbles
+                let s = 1234 + seedOff; const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+                for (let k = 0; k < density; k++) {
+                    let x = r() * w, y = r() * h; const len = 4 + r() * 10;
+                    for (let t = 0; t < len; t++) { px(g, x | 0, y | 0, r() < 0.8 ? INK : INK2); x += Math.cos(t * 0.7 + k) * 1.1; y += Math.sin(t * 0.9 + k) * 1.1; }
+                }
+            };
+            const T = {};
+            T.tattooArm = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); ink(g, 16, 16, 16, 1); px(g, 3, 3, INK, 4, 3); px(g, 10, 9, INK, 4, 4); px(g, 2, 11, INK2, 3, 3); for (let y = 5; y < 16; y += 7) px(g, 0, y, INK, 16, 1); }, true);
+            T.neck = pixTex(32, 16, (g) => { px(g, 0, 0, SK, 32, 16); ink(g, 32, 12, 22, 7); px(g, 0, 12, INK2, 32, 4); }, true);
+            T.skin = new THREE.MeshLambertMaterial({ color: 0xe9b494 });
+            T.skinTex = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); for (let i = 0; i < 10; i++) px(g, (i * 7) % 16, (i * 5) % 16, SK2); }, true);
+            T.foot = pixTex(16, 16, (g) => { px(g, 0, 0, SK, 16, 16); px(g, 5, 4, INK, 6, 2); px(g, 6, 6, INK, 2, 4); px(g, 9, 7, INK2, 3, 2); px(g, 2, 13, SK2, 12, 1); }, true);
+            // face: buzzed light-blond hair line, light brows, blue-grey eyes, stubbly beard
+            T.face = pixTex(32, 32, (g) => {
+                px(g, 0, 0, SK, 32, 32);
+                px(g, 0, 0, HAIR, 32, 5); for (let x = 0; x < 32; x += 2) px(g, x, 5, HAIR2, 1, 1 + (x % 3));
+                px(g, 6, 10, '#c09868', 7, 2); px(g, 19, 10, '#c09868', 7, 2);           // light eyebrows
+                px(g, 7, 13, '#ffffff', 5, 3); px(g, 20, 13, '#ffffff', 5, 3);
+                px(g, 9, 13, '#4a6070', 2, 3); px(g, 22, 13, '#4a6070', 2, 3);           // eyes
+                px(g, 15, 14, SK2, 2, 6); px(g, 14, 19, SK2, 4, 1);                      // nose
+                px(g, 4, 17, SK2, 3, 2); px(g, 25, 17, SK2, 3, 2);
+                for (let y = 18; y < 32; y++) for (let x = 2; x < 30; x++) {           // stubble beard, denser on the jaw
+                    const jaw = y > 25 || x < 6 || x > 25;
+                    if (((x * 7 + y * 13) % 5) < (jaw ? 3 : 2) && !(y >= 23 && y <= 24 && x >= 11 && x <= 20)) px(g, x, y, BEARD);
+                }
+                px(g, 11, 23, '#9a5a4a', 10, 2);                                         // mouth
+                px(g, 13, 26, BEARD, 6, 3);                                              // chin
+            }, true);
+            T.headSide = pixTex(32, 32, (g) => {
+                px(g, 0, 0, SK, 32, 32); px(g, 0, 0, HAIR, 32, 9);
+                for (let x = 0; x < 32; x += 2) px(g, x, 9, HAIR2, 1, 2);
+                px(g, 12, 12, SK2, 6, 8); px(g, 13, 13, '#c88a6c', 4, 6);               // ear
+                for (let y = 20; y < 32; y++) for (let x = 18; x < 32; x++) if (((x * 7 + y * 13) % 5) < 3) px(g, x, y, BEARD);
+            }, true);
+            T.headBack = pixTex(32, 32, (g) => { px(g, 0, 0, SK, 32, 32); px(g, 0, 0, HAIR, 32, 18); for (let i = 0; i < 60; i++) px(g, (i * 11) % 32, (i * 7) % 18, HAIR2); ink(g, 32, 8, 6, 3); }, true);
+            T.hairTop = pixTex(16, 16, (g) => { px(g, 0, 0, HAIR, 16, 16); for (let i = 0; i < 40; i++) px(g, (i * 5) % 16, (i * 3) % 16, i % 2 ? HAIR2 : '#dcbc7c'); }, true);
+            const BLK = '#151519', BLK2 = '#1e1e24', OR = '#f0582a', OR2 = '#b83a1a';
+            T.shirtFront = pixTex(32, 32, (g) => {
+                px(g, 0, 0, BLK, 32, 32); for (let i = 0; i < 30; i++) px(g, (i * 13) % 32, (i * 7) % 32, BLK2, 2, 1);
+                px(g, 11, 0, '#0c0c10', 10, 2);                                          // collar
+                px(g, 7, 24, OR, 7, 4); px(g, 8, 23, OR, 3, 1); px(g, 8, 25, OR2, 5, 1); px(g, 13, 26, OR2, 2, 2); // small logo, lower front hem (his right)
+            }, true);
+            T.shirt = pixTex(32, 32, (g) => { px(g, 0, 0, BLK, 32, 32); for (let i = 0; i < 30; i++) px(g, (i * 13) % 32, (i * 7) % 32, BLK2, 2, 1); }, true);
+            T.sleeveEmblem = pixTex(32, 32, (g) => { // orange-red tribal/phoenix emblem on his LEFT sleeve
+                px(g, 0, 0, BLK, 32, 32);
+                g.fillStyle = OR; g.beginPath(); g.arc(16, 15, 11, 0, Math.PI * 2); g.fill();
+                g.fillStyle = BLK; g.beginPath(); g.arc(16, 15, 8, 0, Math.PI * 2); g.fill();
+                px(g, 15, 7, OR, 2, 16); px(g, 10, 11, OR, 12, 2); px(g, 11, 14, OR, 3, 6); px(g, 18, 14, OR, 3, 6); px(g, 13, 20, OR2, 6, 2);
+            }, true);
+            T.shorts = pixTex(32, 32, (g) => { // blue board shorts with dark circular swirls
+                px(g, 0, 0, '#2a62c8', 32, 32);
+                for (const [cx, cy, r] of [[6, 8, 5], [20, 6, 6], [28, 20, 5], [10, 22, 6], [22, 28, 4]]) {
+                    g.strokeStyle = '#141c3c'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+                    g.strokeStyle = '#5aa0f0'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r - 2.5, 0.5, 4); g.stroke();
+                }
+                for (let x = 0; x < 32; x += 4) px(g, x, 15, '#1a2448', 2, 2);
+            }, true);
+            T.shortsFront = pixTex(32, 32, (g) => {
+                g.drawImage(T.shorts.image, 0, 0);
+                px(g, 0, 0, '#1a3a8a', 32, 4);                                            // waistband
+                px(g, 13, 3, '#f0f0f0', 1, 12); px(g, 18, 3, '#f0f0f0', 1, 10);            // white drawstrings
+                px(g, 12, 15, '#f0f0f0', 2, 2); px(g, 17, 13, '#f0f0f0', 2, 2);
+            }, true);
+            const L = (map) => new THREE.MeshLambertMaterial({ map });
+            const M = {};
+            for (const k in T) M[k] = T[k].isTexture ? L(T[k]) : T[k];
+            TEX.aj = M;
+            return M;
+        }
         function createCharacterAJ() {
             player = new THREE.Group();
+            const M = ajTextures();
+            const B = (w, h, d, mats, x, y, z, parent) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats);
+                m.position.set(x, y, z); (parent || player).add(m); return m;
+            };
+            const six = (side, front, top, back) => [side, side, top || side, top || side, front || side, back || side];
 
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0a880, roughness: 0.8 });
-            const hairMat = new THREE.MeshStandardMaterial({ color: 0xb5925a, roughness: 0.9 });
-            const shirtMat = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.7 });
-            const logoMat = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.5 });
-            const shortsMat = new THREE.MeshStandardMaterial({ color: 0x0077cc, roughness: 0.6 });
-            const tattooMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.9 });
-            const pipeMat = new THREE.MeshStandardMaterial({ color: 0x8899a1, metalness: 0.8, roughness: 0.3 });
-
-            // Torso
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.85, 0.4), shirtMat);
-            torso.position.y = 1.15;
-            torso.castShadow = true;
-            player.add(torso);
-
-            // Shoulder Patch Logo
-            const patch = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.22), logoMat);
-            patch.position.set(-0.36, 1.35, 0);
-            player.add(patch);
-
-            // Head
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.45, 0.42), skinMat);
-            head.position.y = 1.85;
-            head.castShadow = true;
-            player.add(head);
-
-            // Buzzed Hair
-            const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.44), hairMat);
-            hair.position.y = 2.1;
-            player.add(hair);
-
-            // Neck Tattoo
-            const neckTat = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 0.25), tattooMat);
-            neckTat.position.y = 1.58;
-            player.add(neckTat);
-
-            // Tattoo Sleeves
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.22), tattooMat);
-            armL.position.set(-0.48, 1.15, 0);
-            player.add(armL);
-
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.22), tattooMat);
-            armR.position.set(0.48, 1.15, 0);
-            player.add(armR);
-
-            // Melee Pipe Weapon
-            pipeWeapon = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1), pipeMat);
-            pipeWeapon.rotation.x = Math.PI / 3;
-            pipeWeapon.position.set(0.55, 1.0, 0.3);
+            // legs (pivot at the hip) - shorts to the knee, bare shins, tattooed bare feet
+            const legs = [];
+            for (const s of [-1, 1]) {
+                const hip = new THREE.Group(); hip.position.set(0.18 * s, 0.86, 0); player.add(hip);
+                B(0.32, 0.36, 0.34, six(M.shorts, M.shorts), 0, -0.18, 0, hip);
+                B(0.24, 0.42, 0.25, M.skinTex, 0, -0.55, 0, hip);
+                B(0.27, 0.1, 0.38, [M.skin, M.skin, M.foot, M.skin, M.skin, M.skin], 0, -0.81, 0.06, hip);
+                legs.push(hip);
+            }
+            B(0.76, 0.22, 0.46, six(M.shorts, M.shortsFront), 0, 0.96, 0);              // shorts waist with drawstrings
+            const torso = B(0.84, 0.7, 0.54, six(M.shirt, M.shirtFront), 0, 1.4, 0.02);   // stocky t-shirt torso
+            B(0.28, 0.13, 0.28, [M.neck, M.neck, M.skin, M.skin, M.neck, M.neck], 0, 1.8, 0); // neck tattoo
+            const head = B(0.44, 0.46, 0.42, [M.headSide, M.headSide, M.hairTop, M.skin, M.face, M.headBack], 0, 2.08, 0.01);
+            B(0.45, 0.05, 0.43, M.hairTop, 0, 2.32, 0.0);                                // buzz cut cap
+            // arms (pivot at the shoulder): short black sleeves, full tattoo sleeves, emblem on his LEFT (+x) sleeve
+            const arms = {};
+            for (const s of [-1, 1]) {
+                const sh = new THREE.Group(); sh.position.set(0.53 * s, 1.66, 0); player.add(sh);
+                const sleeveOuter = s === 1 ? M.sleeveEmblem : M.shirt;
+                B(0.3, 0.32, 0.32, s === 1 ? [sleeveOuter, M.shirt, M.shirt, M.shirt, sleeveOuter, M.shirt] : M.shirt, 0, -0.14, 0, sh);
+                B(0.23, 0.26, 0.24, M.tattooArm, 0, -0.4, 0, sh);
+                B(0.21, 0.34, 0.22, M.tattooArm, 0, -0.68, 0.01, sh);
+                B(0.2, 0.17, 0.21, M.skinTex, 0, -0.93, 0.02, sh);
+                arms[s === 1 ? 'L' : 'R'] = sh;
+            }
+            // Melee Pipe Weapon (in his right hand)
+            pipeWeapon = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.1, 6), new THREE.MeshLambertMaterial({ color: 0x8a949c }));
             player.add(pipeWeapon);
-
-            // Board Shorts
-            const shorts = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.45, 0.42), shortsMat);
-            shorts.position.y = 0.65;
-            player.add(shorts);
-
-            // Bare Legs
-            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.5, 0.24), skinMat);
-            legL.position.set(-0.18, 0.25, 0);
-            player.add(legL);
-
-            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.5, 0.24), skinMat);
-            legR.position.set(0.18, 0.25, 0);
-            player.add(legR);
-
+            const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), new THREE.MeshLambertMaterial({ color: 0x5a6068 }));
+            elbow.position.y = 0.55; pipeWeapon.add(elbow);
+            player.userData.parts = { legL: legs[1], legR: legs[0], armL: arms.L, armR: arms.R, head, torso };
             player.position.set(0, 0, 0);
             scene.add(player);
         }
@@ -808,13 +883,216 @@
 
         function addWall(minX, maxX, minZ, maxZ, h) { cityWalls.push({ minX, maxX, minZ, maxZ, h }); }
 
+        /* --- LEVELS --- */
+        const LEVELS = [
+            {
+                id: 'alley', name: 'ALLEYWAY', sub: 'Alleyway Adventure', river: false,
+                bg: 0x1a1530, fogNear: 9, fogFar: 48, hemiSky: 0x8a86c8, hemiGround: 0x2a1a22, hemiI: 0.75, amb: 0x30283c, ambI: 0.45, moon: 0xa8b4ff, moonI: 0.5,
+                lamp: 0xffb060, pool: 0x8a5a24, warm: 0xffa050, barrels: 7,
+                signs: [['RINSED', '#2ad8ff', 0x2ad8ff], ['BAR', '#ff2a8a', 0xff2a8a], ['PAWN', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['MOTEL', '#ff2a8a', 0xff2a8a], ['NOODLE', '#2ad8ff', 0x2ad8ff], ['ARCADE', '#ffd02a', 0xffd02a], ['TATTOO', '#b04aff', 0xb04aff], ['LIQUOR', '#6aff3a', 0x6aff3a]]
+            },
+            {
+                id: 'river', name: 'RIVERSIDE', sub: 'Riverside Camp', river: true,
+                bg: 0x34203a, fogNear: 8, fogFar: 46, hemiSky: 0xc08a90, hemiGround: 0x1a1420, hemiI: 0.7, amb: 0x3a2a34, ambI: 0.45, moon: 0xffa080, moonI: 0.35,
+                lamp: 0xff9030, pool: 0x9a5010, warm: 0xff8a28, barrels: 11,
+                signs: [['PIER 9', '#2ad8ff', 0x2ad8ff], ['MOTEL', '#ff2a8a', 0xff2a8a], ['DINER', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['LIQUOR', '#ff2a8a', 0xff2a8a], ['CAFE', '#2ad8ff', 0x2ad8ff], ['TAXI', '#ffd02a', 0xffd02a], ['BRIDGE ST', '#b04aff', 0xb04aff], ['HOTEL', '#6aff3a', 0x6aff3a]]
+            }
+        ];
+        let currentLevel = 0, selectedLevel = 0;
+        const RIVER_J0 = 15, RIVER_J1 = 17, BRIDGE_I = [5, 17];
+        let hemiLight = null, ambLight = null;
+        function applyLevelLook(L) {
+            scene.background.setHex(L.bg);
+            scene.fog.color.setHex(L.bg); scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
+            hemiLight.color.setHex(L.hemiSky); hemiLight.groundColor.setHex(L.hemiGround); hemiLight.intensity = L.hemiI;
+            ambLight.color.setHex(L.amb); ambLight.intensity = L.ambI;
+            moonLight.color.setHex(L.moon); moonLight.intensity = L.moonI;
+            if (TEX.pool) TEX.pool.color.setHex(L.pool);
+        }
+
+        /* --- RIVERSIDE KIT --- */
+        function ensureRiverTextures() {
+            if (TEX.water) return;
+            TEX.waterTex = pixTex(64, 64, (g) => {
+                px(g, 0, 0, '#16323e', 64, 64);
+                for (let i = 0; i < 260; i++) px(g, srandT() * 64 | 0, srandT() * 64 | 0, pickc(['#1a3a48', '#123040', '#1e4452']), 3, 1);
+                for (let k = 0; k < 9; k++) { const y = srandT() * 64 | 0, x = srandT() * 64 | 0; px(g, x, y, '#3a7a88', 8 + srandT() * 8 | 0, 1); }
+            });
+            TEX.waterTex.repeat.set(36, 5);
+            TEX.water = new THREE.MeshLambertMaterial({ map: TEX.waterTex, emissive: 0x0a1a22, emissiveIntensity: 1 });
+            TEX.waterHiTex = pixTex(64, 64, (g) => {
+                g.clearRect(0, 0, 64, 64);
+                for (let k = 0; k < 14; k++) { const y = srandT() * 64 | 0, x = srandT() * 64 | 0; px(g, x, y, 'rgba(255,170,90,0.55)', 4 + srandT() * 10 | 0, 1); }
+            });
+            TEX.waterHiTex.repeat.set(24, 3);
+            TEX.waterHi = new THREE.MeshBasicMaterial({ map: TEX.waterHiTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.6 });
+            TEX.concrete = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#6a6a70', 32, 32); for (let i = 0; i < 200; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#5e5e64', '#727278', '#606068']), 1, 1); px(g, 0, 0, '#4e4e54', 32, 1); px(g, 0, 0, '#4e4e54', 1, 32); px(g, 4, 20, 'rgba(20,20,30,0.3)', 10, 8); }) });
+            TEX.paving = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#4a4850', 32, 32); for (let y = 0; y < 32; y += 8) for (let x = (y / 8 % 2) * 4; x < 32; x += 8) px(g, x + 1, y + 1, pickc(['#56545c', '#504e56', '#5c5a62']), 6, 6); }, true) });
+            TEX.tent = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#2a5ab8', 32, 32); for (let i = 0; i < 70; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#244ea0', '#3266c8', '#1e4490']), 2, 1); px(g, 0, 15, '#1a3a80', 32, 2); px(g, 15, 0, '#1a3a80', 1, 32); }, true), side: THREE.DoubleSide });
+            TEX.tentGrey = lambert({ map: pixTex(16, 16, (g) => { px(g, 0, 0, '#5a6470', 16, 16); for (let i = 0; i < 30; i++) px(g, srandT() * 16 | 0, srandT() * 16 | 0, '#4a5460'); px(g, 0, 7, '#3a444e', 16, 1); }, true), side: THREE.DoubleSide });
+            TEX.tarp = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#3a7ad8', 32, 32); for (let i = 0; i < 60; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#346ec8', '#4486e0']), 3, 1); for (const [x, y] of [[1, 1], [29, 1], [1, 29], [29, 29]]) px(g, x, y, '#d8d8d8', 2, 2); }, true), side: THREE.DoubleSide });
+            TEX.bags = ['#7a2a2a', '#2a5a3a', '#2a2e5a', '#6a5a2a'].map(c => lambert({ color: new THREE.Color(c) }));
+            TEX.bikeRed = lambert({ color: 0xa02a2a });
+            TEX.overpass = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#5a5860', 32, 32); for (let i = 0; i < 160; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#4e4c54', '#66646c']), 2, 2); for (let i = 0; i < 6; i++) px(g, srandT() * 32 | 0, 0, 'rgba(20,20,26,0.4)', 2, 32); }) });
+        }
+
+        function buildRiverside(open, water, isOpen, openCells, slotsNearSpawn) {
+            ensureRiverTextures();
+            const zA = cellX(RIVER_J0) - CELL / 2, zB = cellX(RIVER_J1) + CELL / 2, zMid = (zA + zB) / 2;
+            // water: two scrolling layers
+            const w1 = new THREE.Mesh(new THREE.PlaneGeometry(160, zB - zA), TEX.water);
+            w1.rotation.x = -Math.PI / 2; w1.position.set(0, 0.05, zMid); cityGroup.add(w1);
+            const w2 = new THREE.Mesh(new THREE.PlaneGeometry(160, zB - zA), TEX.waterHi);
+            w2.rotation.x = -Math.PI / 2; w2.position.set(0, 0.07, zMid); cityGroup.add(w2);
+            // invisible walls over every water run (you can't wade in)
+            for (let j = RIVER_J0; j <= RIVER_J1; j++) {
+                let i = 0;
+                while (i < GN) {
+                    if (!water[i * GN + j]) { i++; continue; }
+                    let e = i; while (e + 1 < GN && water[(e + 1) * GN + j]) e++;
+                    addWall(cellX(i) - CELL / 2 - (i === 0 ? 20 : 0), cellX(e) + CELL / 2 + (e === GN - 1 ? 20 : 0), cellX(j) - CELL / 2, cellX(j) + CELL / 2, 60);
+                    cityWalls[cityWalls.length - 1].water = true;
+                    i = e + 1;
+                }
+            }
+            // embankment: concrete curbs + railings along both banks, paved riverwalk
+            const curb = new Batch(), rail = new Batch(), paving = new Batch(), deck = new Batch();
+            for (let i = 0; i < GN; i++) {
+                const x = cellX(i);
+                const bridge = BRIDGE_I.includes(i);
+                for (const [z, side] of [[zA, -1], [zB, 1]]) {
+                    if (!bridge) {
+                        curb.box(CELL, 0.45, 0.5, x, 0.22, z + side * 0.25);
+                        rail.box(CELL, 0.06, 0.06, x, 1.15, z + side * 0.3);
+                        rail.box(CELL, 0.05, 0.05, x, 0.75, z + side * 0.3);
+                        for (let t = -3; t < 3; t += 1.5) rail.box(0.07, 0.9, 0.07, x + t, 0.7, z + side * 0.3);
+                    }
+                }
+                const jWalk = [RIVER_J0 - 1, RIVER_J1 + 1];
+                for (const jw of jWalk) if (isOpen(i, jw)) paving.add(GEO.fencePlane || (GEO.fencePlane = new THREE.PlaneGeometry(1, 1)), x, 0.015, cellX(jw), 0, 0, -Math.PI / 2, CELL, CELL, 1, (u, v) => [u * 3, v * 3]);
+            }
+            // footbridges (walkable decks with railings)
+            for (const bi of BRIDGE_I) {
+                const x = cellX(bi);
+                deck.box(CELL - 0.6, 0.24, zB - zA + 1.2, x, 0.0, zMid);
+                for (const sx of [-1, 1]) {
+                    rail.box(0.07, 0.07, zB - zA + 1.2, x + sx * (CELL / 2 - 0.4), 1.15, zMid);
+                    for (let z = zA; z <= zB; z += 1.5) rail.box(0.07, 1.0, 0.07, x + sx * (CELL / 2 - 0.4), 0.65, z);
+                }
+                addWall(x - CELL / 2 - 0.2, x - CELL / 2 + 0.5, zA - 0.5, zB + 0.5, 1.3);
+                addWall(x + CELL / 2 - 0.5, x + CELL / 2 + 0.2, zA - 0.5, zB + 0.5, 1.3);
+            }
+            curb.build(TEX.concrete, cityGroup); rail.build(TEX.metalLight, cityGroup);
+            paving.build(TEX.paving, cityGroup);
+            deck.build(TEX.concrete, cityGroup);
+
+            // highway overpass over the camp (columns 10-12), deck at 7m with pillars
+            const ox0 = cellX(10) - CELL / 2, ox1 = cellX(12) + CELL / 2, oz0 = cellX(8) - CELL / 2 + 1, oz1 = cellX(21) + CELL / 2 - 1;
+            const ov = new Batch();
+            ov.box(ox1 - ox0 + 1, 1.1, oz1 - oz0, (ox0 + ox1) / 2, 7.4, (oz0 + oz1) / 2);
+            ov.box(0.4, 1.0, oz1 - oz0, ox0 - 0.3, 8.4, (oz0 + oz1) / 2);
+            ov.box(0.4, 1.0, oz1 - oz0, ox1 + 0.3, 8.4, (oz0 + oz1) / 2);
+            for (let z = oz0 + 4; z < oz1 - 2; z += 12) {
+                for (const x of [ox0 + 0.9, ox1 - 0.9]) {
+                    ov.box(1.2, 6.9, 1.2, x, 3.45, z);
+                    ov.box(1.6, 0.4, 1.6, x, 6.75, z);
+                    if (!pointInWalls(x, 1, z, 0)) addWall(x - 0.6, x + 0.6, z - 0.6, z + 0.6, 7);
+                }
+                ov.box(ox1 - ox0, 0.6, 1.0, (ox0 + ox1) / 2, 6.6, z); // cross beam
+            }
+            ov.build(TEX.overpass, cityGroup);
+            const ovLamps = [];
+            for (let z = oz0 + 6; z < oz1; z += 10) ovLamps.push(ox0 - 0.2, 9.6, z, ox1 + 0.2, 9.6, z);
+            const og = new THREE.BufferGeometry(); og.setAttribute('position', new THREE.Float32BufferAttribute(ovLamps, 3));
+            cityGroup.add(new THREE.Points(og, new THREE.PointsMaterial({ map: TEX.glow, color: 0xff9030, size: 3, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
+
+            // encampment: blue tents, tarps on poles, carts, pallets, sleeping bags, bikes (scenery only)
+            const tentB = new Batch(), tentG = new Batch(), tarpB = new Batch(), poleB = new Batch(), cartB = new Batch(), cartMetal = new Batch(), palletB = new Batch(), bikeB = new Batch(), bikeFrame = new Batch();
+            const bagB = TEX.bags.map(() => new Batch());
+            const prism = GEO.prism || (GEO.prism = (() => { const t = new THREE.CylinderGeometry(1, 1, 1, 3); t.rotateZ(Math.PI / 2); t.rotateX(-Math.PI / 2); t.translate(0, 0.5, 0); return t; })());
+            const dome = GEO.dome || (GEO.dome = new THREE.SphereGeometry(1, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2));
+            const wheel = GEO.wheel || (GEO.wheel = new THREE.TorusGeometry(0.32, 0.035, 4, 10));
+            const camp = openCells.filter(c => {
+                if (c.bridge) return false;
+                if (Math.abs(c.i - GHALF) <= 1 && Math.abs(c.j - GHALF) <= 1) return false;
+                return (c.j >= RIVER_J0 - 3 && c.j <= RIVER_J1 + 1) || (c.i >= 10 && c.i <= 12 && c.j >= 9 && c.j <= 20) || (c.j === RIVER_J1 + 2 && srand() < 0.4);
+            });
+            // Props only go in the 4 corners of a cell (1.2-3m from centre), so a cross-shaped
+            // walkway through every cell always stays open and the map stays connected.
+            camp.forEach(c => {
+                if (srand() > 0.85) return;
+                const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]].filter(([qx, qz]) => !isOpen(c.i + qx, c.j) || !isOpen(c.i, c.j + qz) || srand() < 0.35);
+                corners.sort(() => srand() - 0.5);
+                corners.slice(0, 1 + (srand() < 0.6 ? 1 : 0)).forEach(([qx, qz]) => {
+                    const bx = c.x + qx * 2.3, bz = c.z + qz * 2.3;
+                    if (pointInWalls(bx, 0.5, bz, 0.3)) return;
+                    // face along the closed side if there is one
+                    const alongX = !isOpen(c.i, c.j + qz);
+                    const tx = alongX ? 1 : 0, tz = alongX ? 0 : 1, sx = alongX ? 0 : qx, sz = alongX ? qz : 0;
+                    const ry = alongX ? 0 : Math.PI / 2;
+                    const r = srand();
+                    if (r < 0.32) { // ridge tent
+                        const L_ = 1.45 + srand() * 0.1, H = 0.9 + srand() * 0.25;
+                        (srand() < 0.8 ? tentB : tentG).add(prism, bx, 0, bz, ry, 0, 0, L_, H * 1.2, 0.82);
+                        addWall(bx - 0.72, bx + 0.72, bz - 0.72, bz + 0.72, 1.3);
+                    } else if (r < 0.5) { // dome tent
+                        const s = 0.62 + srand() * 0.1;
+                        (srand() < 0.75 ? tentB : tentG).add(dome, bx, 0, bz, srand() * 6, 0, 0, s, s * 0.95, s);
+                        addWall(bx - s, bx + s, bz - s, bz + s, 1.0);
+                    } else if (r < 0.66) { // blue tarp strung between 4 poles, bedding under it
+                        const pw = 1.5, pd = 1.4;
+                        for (const [a, b, h] of [[-1, -1, 2.3], [1, -1, 2.3], [-1, 1, 1.8], [1, 1, 1.8]]) {
+                            poleB.box(0.06, h, 0.06, bx + tx * a * pw / 2 - sx * b * pd / 2, h / 2, bz + tz * a * pw / 2 - sz * b * pd / 2);
+                        }
+                        tarpB.add(GEO.fencePlane || (GEO.fencePlane = new THREE.PlaneGeometry(1, 1)), bx, 2.05, bz, ry, 0, -Math.PI / 2 + 0.25, pw + 0.3, pd + 0.3, 1);
+                        bagB[Math.floor(srand() * bagB.length)].box(1.35, 0.2, 0.62, bx, 0.1, bz, ry);
+                        if (srand() < 0.5) { cartB.box(0.7, 0.45, 0.45, bx + tx * 0.4 + sx * 0.5, 0.7, bz + tz * 0.4 + sz * 0.5, ry); }
+                    } else if (r < 0.76) { // shopping cart (with bags in it)
+                        cartB.box(0.85, 0.5, 0.55, bx, 0.75, bz, ry);
+                        cartMetal.box(0.05, 0.05, 0.6, bx - tx * 0.5, 1.05, bz - tz * 0.5, ry);
+                        for (const [a, b] of [[-0.4, -0.22], [0.4, -0.22], [-0.4, 0.22], [0.4, 0.22]]) cartMetal.box(0.04, 0.5, 0.04, bx + tx * a + tz * b, 0.25, bz + tz * a + tx * b, ry);
+                        bagB[Math.floor(srand() * bagB.length)].box(0.5, 0.3, 0.4, bx, 1.0, bz, ry);
+                        addWall(bx - 0.5, bx + 0.5, bz - 0.5, bz + 0.5, 1.1);
+                    } else if (r < 0.86) { // pallet stack
+                        const nP = 1 + Math.floor(srand() * 3);
+                        for (let p = 0; p < nP; p++) {
+                            for (let sl = -1; sl <= 1; sl++) palletB.box(1.1, 0.04, 0.24, bx + tz * sl * 0.38, 0.14 + p * 0.16, bz + tx * sl * 0.38, ry);
+                            palletB.box(1.1, 0.1, 0.1, bx, 0.06 + p * 0.16, bz, ry);
+                        }
+                        if (nP > 1) addWall(bx - 0.55, bx + 0.55, bz - 0.55, bz + 0.55, 0.2 + nP * 0.16);
+                    } else if (r < 0.93) { // bike
+                        const nRy = ry;
+                        bikeB.add(wheel, bx + tx * 0.5, 0.34, bz + tz * 0.5, nRy);
+                        bikeB.add(wheel, bx - tx * 0.5, 0.34, bz - tz * 0.5, nRy);
+                        bikeFrame.box(0.95, 0.05, 0.05, bx, 0.62, bz, ry);
+                        bikeFrame.box(0.05, 0.42, 0.05, bx - tx * 0.15, 0.5, bz - tz * 0.15, ry);
+                        bikeFrame.box(0.05, 0.05, 0.42, bx + tx * 0.45, 0.88, bz + tz * 0.45, ry);
+                    } else { // sleeping bag on a pallet
+                        palletB.box(1.5, 0.12, 0.9, bx, 0.06, bz, ry);
+                        bagB[Math.floor(srand() * bagB.length)].box(1.4, 0.2, 0.66, bx, 0.22, bz, ry);
+                    }
+                });
+            });
+            tentB.build(TEX.tent, cityGroup); tentG.build(TEX.tentGrey, cityGroup);
+            tarpB.build(TEX.tarp, cityGroup); poleB.build(TEX.metal, cityGroup);
+            cartB.build(TEX.fence, cityGroup); cartMetal.build(TEX.metalLight, cityGroup);
+            palletB.build(TEX.wood, cityGroup); bikeB.build(TEX.metal, cityGroup); bikeFrame.build(TEX.bikeRed, cityGroup);
+            bagB.forEach((b, k) => b.build(TEX.bags[k], cityGroup));
+            return camp;
+        }
+        function updateWater(dt) {
+            if (!TEX.waterTex || !LEVELS[currentLevel].river) return;
+            TEX.waterTex.offset.x += dt * 0.09; TEX.waterTex.offset.y += dt * 0.012;
+            TEX.waterHiTex.offset.x += dt * 0.16; TEX.waterHiTex.offset.y = Math.sin(elapsed * 0.7) * 0.05;
+        }
+
         /* --- PROCEDURAL MAP LAYOUT (seeded maze of alleys -> guaranteed connectivity) --- */
         const CELL = 6, GN = 23, GHALF = 11;
         let cityGroup = null, mapInfo = null, steamSystems = [];
         function cellX(i) { return (i - GHALF) * CELL; }
         function cellOf(x) { return Math.round(x / CELL) + GHALF; }
 
-        function generateLayout() {
+        function generateLayout(L) {
             const open = new Uint8Array(GN * GN);
             const id = (i, j) => i * GN + j;
             // randomized DFS maze on odd nodes, starting at the spawn node
@@ -847,7 +1125,20 @@
             }
             // spawn plaza (5x5 cells = 30m)
             for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) open[id(GHALF + a, GHALF + b)] = 1;
-            return open;
+            const water = new Uint8Array(GN * GN), bridge = new Uint8Array(GN * GN);
+            if (L.river) {
+                for (let i = 0; i < GN; i++) for (let j = RIVER_J0; j <= RIVER_J1; j++) { open[id(i, j)] = 0; water[id(i, j)] = 1; }
+                for (let i = 1; i < GN - 1; i++) { open[id(i, RIVER_J0 - 1)] = 1; open[id(i, RIVER_J1 + 1)] = 1; } // riverwalks
+                for (const bi of BRIDGE_I) for (let j = RIVER_J0; j <= RIVER_J1; j++) { water[id(bi, j)] = 0; open[id(bi, j)] = 1; bridge[id(bi, j)] = 1; }
+                for (let i = 10; i <= 12; i++) {
+                    for (let j = 9; j <= 20; j++) if (!water[id(i, j)]) open[id(i, j)] = 1; // camp under the overpass
+                    open[id(i, 8)] = 0; open[id(i, 21)] = 0;                               // overpass ends sit on buildings
+                }
+            }
+            // anything not connected to the spawn becomes building (guarantees reachability)
+            const dist = bfsCells(open, new Set(), GHALF, GHALF);
+            for (let k = 0; k < GN * GN; k++) if (open[k] && dist[k] < 0) open[k] = 0;
+            return { open, water, bridge };
         }
 
         function bfsCells(open, blocked, si, sj) {
@@ -900,24 +1191,27 @@
             cityGroup.add(ground);
 
             const metalMat = TEX.metal;
-            const open = generateLayout();
+            const LV = LEVELS[currentLevel];
+            const { open, water, bridge } = generateLayout(LV);
             const isOpen = (i, j) => i >= 0 && j >= 0 && i < GN && j < GN && open[i * GN + j] === 1;
+            const solid = (k) => open[k] || water[k]; // cells that are NOT building
 
             // merge closed cells into building rectangles
             const owner = new Int16Array(GN * GN).fill(-1);
             const rects = [];
             for (let i = 0; i < GN; i++) for (let j = 0; j < GN; j++) {
-                if (open[i * GN + j] || owner[i * GN + j] >= 0) continue;
+                if (solid(i * GN + j) || owner[i * GN + j] >= 0) continue;
                 const maxW = 1 + Math.floor(srand() * 4), maxD = 1 + Math.floor(srand() * 4);
                 let w = 1;
-                while (w < maxW && i + w < GN && !open[(i + w) * GN + j] && owner[(i + w) * GN + j] < 0) w++;
+                while (w < maxW && i + w < GN && !solid((i + w) * GN + j) && owner[(i + w) * GN + j] < 0) w++;
                 let d = 1;
                 outer: while (d < maxD && j + d < GN) {
-                    for (let a = 0; a < w; a++) { const k = (i + a) * GN + j + d; if (open[k] || owner[k] >= 0) break outer; }
+                    for (let a = 0; a < w; a++) { const k = (i + a) * GN + j + d; if (solid(k) || owner[k] >= 0) break outer; }
                     d++;
                 }
                 const border = i === 0 || j === 0 || i + w === GN || j + d === GN;
-                const h = border ? 18 + srand() * 10 : 7 + srand() * 15;
+                let h = border ? 18 + srand() * 10 : 7 + srand() * 15;
+                if (LV.river && i <= 12 && i + w > 10 && (j <= 8 && j + d > 8 || j <= 21 && j + d > 21)) h = Math.max(h, 10); // overpass abutments
                 const r = { i, j, w, d, h, f: Math.floor(srand() * 3) };
                 for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) owner[(i + a) * GN + j + b] = rects.length;
                 rects.push(r);
@@ -971,7 +1265,7 @@
                 if (!open[i * GN + j]) continue;
                 for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
                     const ni = i + di, nj = j + dj;
-                    if (isOpen(ni, nj) || ni < 0 || nj < 0 || ni >= GN || nj >= GN) continue;
+                    if (isOpen(ni, nj) || ni < 0 || nj < 0 || ni >= GN || nj >= GN || water[ni * GN + nj]) continue;
                     const r = rects[owner[ni * GN + nj]];
                     slots.push({
                         i, j, x: cellX(i) + di * CELL / 2, z: cellX(j) + dj * CELL / 2,
@@ -992,7 +1286,7 @@
             let decalOff = 0.03;
 
             // neon signs: 3 lit ones around the plaza, more scattered
-            const signWords = [['RINSED', '#2ad8ff', 0x2ad8ff], ['BAR', '#ff2a8a', 0xff2a8a], ['PAWN', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['MOTEL', '#ff2a8a', 0xff2a8a], ['NOODLE', '#2ad8ff', 0x2ad8ff], ['ARCADE', '#ffd02a', 0xffd02a], ['TATTOO', '#b04aff', 0xb04aff], ['LIQUOR', '#6aff3a', 0x6aff3a]];
+            const signWords = LV.signs;
             const plazaSlots = slots.filter(s => s.plaza && s.h > 7).sort((a, b) => a.d - b.d);
             const otherSlots = slots.filter(s => !s.plaza && s.h > 7);
             const signSlots = [];
@@ -1148,7 +1442,7 @@
             if (lampSpots.length) {
                 const poles = new THREE.InstancedMesh(GEO.pole || (GEO.pole = new THREE.CylinderGeometry(0.08, 0.12, 5, 6)), metalMat, lampSpots.length);
                 const arms = new THREE.InstancedMesh(unitBox(), metalMat, lampSpots.length);
-                const heads = new THREE.InstancedMesh(GEO.lampHead || (GEO.lampHead = new THREE.CylinderGeometry(0.12, 0.35, 0.3, 6)), new THREE.MeshBasicMaterial({ color: 0xffd090 }), lampSpots.length);
+                const heads = new THREE.InstancedMesh(GEO.lampHead || (GEO.lampHead = new THREE.CylinderGeometry(0.12, 0.35, 0.3, 6)), new THREE.MeshBasicMaterial({ color: new THREE.Color(LV.lamp).lerp(new THREE.Color(0xffffff), 0.4) }), lampSpots.length);
                 const pools = new THREE.InstancedMesh(GEO.pool || (GEO.pool = new THREE.PlaneGeometry(1, 1)), TEX.pool, lampSpots.length);
                 [poles, arms, heads, pools].forEach(m => m.userData.sharedGeo = true);
                 const glowPos = [];
@@ -1162,10 +1456,10 @@
                 });
                 cityGroup.add(poles, arms, heads, pools);
                 const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(glowPos, 3));
-                cityGroup.add(new THREE.Points(gg, new THREE.PointsMaterial({ map: TEX.glow, color: 0xffb060, size: 3.2, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })));
+                cityGroup.add(new THREE.Points(gg, new THREE.PointsMaterial({ map: TEX.glow, color: LV.lamp, size: 3.2, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })));
                 // two real warm lights: the lamps closest to spawn
                 lampSpots.slice().sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1])).slice(0, 2).forEach(([x, z, nx, nz]) => {
-                    const pl = new THREE.PointLight(0xffa050, 1.3, 16, 1.5);
+                    const pl = new THREE.PointLight(LV.warm, 1.3, 16, 1.5);
                     pl.position.set(x + nx * 1.15, 4.2, z + nz * 1.15);
                     cityGroup.add(pl);
                 });
@@ -1174,7 +1468,7 @@
             // overhead wires across straight alley segments + a string of bulbs over the plaza
             const wirePts = [], bulbPts = [];
             for (let i = 1; i < GN - 1; i++) for (let j = 1; j < GN - 1; j++) {
-                if (!isOpen(i, j) || srand() > 0.22) continue;
+                if (!isOpen(i, j) || srand() > 0.22 || water[(i - 1) * GN + j] || water[(i + 1) * GN + j] || water[i * GN + j - 1] || water[i * GN + j + 1]) continue;
                 const xOpen = isOpen(i - 1, j) || isOpen(i + 1, j);
                 const zOpen = isOpen(i, j - 1) || isOpen(i, j + 1);
                 let a, b;
@@ -1216,7 +1510,7 @@
                 const i = 1 + Math.floor(srand() * (GN - 2)), j = 1 + Math.floor(srand() * (GN - 2));
                 if (!isOpen(i, j) || (Math.abs(i - GHALF) <= 3 && Math.abs(j - GHALF) <= 3)) continue;
                 const [di, dj] = srand() < 0.5 ? [1, 0] : [0, 1];
-                if (!isOpen(i + di, j + dj)) continue;
+                if (!isOpen(i + di, j + dj) || bridge[i * GN + j] || bridge[(i + di) * GN + j + dj]) continue;
                 // must be a corridor (walls on both sides of the edge) so the fence fully spans it
                 const sideA = di ? [[i, j - 1], [i + 1, j - 1], [i, j + 1], [i + 1, j + 1]] : [[i - 1, j], [i - 1, j + 1], [i + 1, j], [i + 1, j + 1]];
                 if (sideA.some(([a, b]) => isOpen(a, b))) continue;
@@ -1240,11 +1534,13 @@
             // distances over the final walkable graph -> placement of everything gameplay
             const dist = bfsCells(open, blocked, GHALF, GHALF);
             const openCells = [];
-            for (let i = 0; i < GN; i++) for (let j = 0; j < GN; j++) if (open[i * GN + j]) openCells.push({ i, j, d: dist[i * GN + j], x: cellX(i), z: cellX(j), n: [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isOpen(i + a, j + b)).length });
+            for (let i = 0; i < GN; i++) for (let j = 0; j < GN; j++) if (open[i * GN + j] && dist[i * GN + j] >= 0) openCells.push({ i, j, d: dist[i * GN + j], x: cellX(i), z: cellX(j), bridge: !!bridge[i * GN + j], n: [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isOpen(i + a, j + b)).length });
+            const campCells = LV.river ? buildRiverside(open, water, isOpen, openCells) : [];
 
             // ground dressing: puddles (fake neon reflections), grime, vents, manholes
             const puddleB = [new Batch(), new Batch(), new Batch()], darkB = new Batch();
             openCells.forEach(c => {
+                if (c.bridge) return;
                 if (srand() < 0.3) {
                     const x = c.x + (srand() - 0.5) * 3, z = c.z + (srand() - 0.5) * 3, s = 1.5 + srand() * 2;
                     darkB.quad(x, 0.02, z, 1, 0, 0, 0, 0, -1, s * 1.4, s, 15);
@@ -1256,7 +1552,7 @@
             const puddleMats = [0xff2a8a, 0x2ad8ff, 0xffb050].map(c => new THREE.MeshBasicMaterial({ map: TEX.glow, color: new THREE.Color(c).multiplyScalar(0.28), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
             puddleB.forEach((b, k) => b.build(puddleMats[k], cityGroup));
             // steam vents
-            const ventCells = openCells.filter(c => c.d > 2).sort(() => srand() - 0.5).slice(0, 5);
+            const ventCells = openCells.filter(c => c.d > 2 && !c.bridge).sort(() => srand() - 0.5).slice(0, 5);
             ventCells.forEach(c => {
                 const x = c.x + 1.4, z = c.z - 1.4;
                 groundDecals.quad(x, 0.03, z, 1, 0, 0, 0, 0, -1, 1.2, 1.2, 13);
@@ -1266,7 +1562,7 @@
             groundDecals.build(TEX.decal, cityGroup);
 
             // burning barrels in random corners
-            const barrelCells = openCells.filter(c => c.d > 0).sort(() => srand() - 0.5).slice(0, 7);
+            const barrelCells = (LV.river ? campCells.concat(openCells.filter(c => !campCells.includes(c) && !c.bridge)) : openCells).filter(c => c.d > 0 && !c.bridge).slice().sort((a, b) => (LV.river ? (campCells.includes(b) - campCells.includes(a)) * 2 : 0) + srand() - 0.5).slice(0, LV.barrels);
             const barrelInst = new THREE.InstancedMesh(GEO.barrel || (GEO.barrel = new THREE.CylinderGeometry(0.42, 0.42, 1.1, 7)), TEX.barrel, barrelCells.length);
             barrelInst.userData.sharedGeo = true;
             const fireGlow = [];
@@ -1557,7 +1853,6 @@
                     o.material = new THREE.MeshLambertMaterial({ color: o.material.color });
                 }
             });
-            if (root === player && player.children[2]) player.children[2].material = faceMaterial('aj', 0xe0a880);
         }
         let playerShadow = null;
         function addBlobShadow(obj, r) {
@@ -1960,9 +2255,10 @@
             }
             return gh;
         }
-        function pointInWalls(x, y, z, pad) {
+        function pointInWalls(x, y, z, pad, skipWater) {
             for (let i = 0; i < cityWalls.length; i++) {
                 const w = cityWalls[i];
+                if (skipWater && w.water) continue;
                 if (y < w.h + pad && x > w.minX - pad && x < w.maxX + pad && z > w.minZ - pad && z < w.maxZ + pad) return true;
             }
             return false;
@@ -2051,9 +2347,13 @@
             bindBtn('btn-run', () => { running = !running && stamina > 5; updateRunBtn(); });
             bindBtn('btn-hit', () => { hitHeld = true; tryAttack(); }, () => { hitHeld = false; });
 
-            $('btn-start').addEventListener('click', startGame);
-            $('btn-restart').addEventListener('click', startGame);
-            $('btn-retry').addEventListener('click', startGame);
+            $('btn-start').addEventListener('click', () => startGame(selectedLevel));
+            $('lvl-alley').addEventListener('click', () => selectLevel(0));
+            $('lvl-river').addEventListener('click', () => selectLevel(1));
+            $('btn-restart').addEventListener('click', () => startGame(currentLevel));
+            $('btn-next').addEventListener('click', () => startGame(currentLevel + 1));
+            $('btn-retry').addEventListener('click', () => startGame(currentLevel));
+            document.querySelectorAll('.btn-menu').forEach(b => b.addEventListener('click', showMenu));
             document.addEventListener('visibilitychange', () => { if (!document.hidden && clock) clock.getDelta(); });
             document.addEventListener('gesturestart', (e) => e.preventDefault());
         }
@@ -2062,7 +2362,8 @@
         function updateRunBtn() { $('btn-run').classList.toggle('active', running); }
 
         /* --- GAME FLOW --- */
-        function startGame() {
+        function startGame(level) {
+            if (typeof level === 'number') currentLevel = Math.max(0, Math.min(LEVELS.length - 1, level));
             initAudio();
             try {
                 const de = document.documentElement;
@@ -2074,14 +2375,29 @@
             $('hud').style.display = 'block';
             gameState = 'playing';
             clock.getDelta();
+            showToast(`LEVEL ${currentLevel + 1}: ${LEVELS[currentLevel].name}`, '#ffcc00');
+        }
+        function showMenu() {
+            gameState = 'menu';
+            ['win-screen', 'gameover-screen'].forEach(id => $(id).style.display = 'none');
+            $('hud').style.display = 'none';
+            healers.forEach(h => h.bubble && (h.bubble.style.opacity = 0));
+            $('start-screen').style.display = 'flex';
+        }
+        function selectLevel(k) {
+            selectedLevel = k;
+            document.querySelectorAll('.lvl-btn').forEach((b, i) => b.classList.toggle('sel', i === k));
         }
 
         function newMap(seed) {
             mapSeed = seed >>> 0 || 1;
             _seed = mapSeed % 2147483646 + 1;
+            applyLevelLook(LEVELS[currentLevel]);
             buildCityEnvironment();   // disposes the previous map first
             buildNavGrid();
-            $('seed-label').textContent = 'SEED ' + mapSeed;
+            applyLevelLook(LEVELS[currentLevel]);
+            $('seed-label').textContent = 'L' + (currentLevel + 1) + ' SEED ' + mapSeed;
+            $('level-name').textContent = 'LV' + (currentLevel + 1) + ' ' + LEVELS[currentLevel].name;
         }
         let firstSeed = (() => { const m = /[?&]seed=(\d+)/.exec(location.search); return m ? +m[1] : 0; })();
         function resetGame() {
@@ -2110,7 +2426,10 @@
         function winGame() {
             gameState = 'won';
             playSound('win');
-            $('win-stats').textContent = `Time ${formatTime(playTime)}  •  Thugs down ${thugsDowned}`;
+            $('win-stats').textContent = `${LEVELS[currentLevel].name}  •  Time ${formatTime(playTime)}  •  Thugs down ${thugsDowned}`;
+            const last = currentLevel >= LEVELS.length - 1;
+            $('btn-next').style.display = last ? 'none' : '';
+            $('win-sub').textContent = last ? 'All levels cleared' : 'Level cleared';
             setTimeout(() => { if (gameState === 'won') { $('hud').style.display = 'none'; $('win-screen').style.display = 'flex'; } }, 900);
         }
         function loseGame() {
@@ -2159,8 +2478,8 @@
         /* --- PLAYER --- */
         function resetPipe() {
             pipeWeapon.rotation.order = 'XYZ';
-            pipeWeapon.rotation.set(Math.PI / 3, 0, 0);
-            pipeWeapon.position.set(0.55, 1.0, 0.3);
+            pipeWeapon.rotation.set(0.9, 0, 0.35);
+            pipeWeapon.position.set(-0.53, 0.9, 0.33); // gripped in his right hand
         }
         function tryAttack() {
             if (gameState !== 'playing' || attackCooldown > 0) return;
@@ -2211,23 +2530,22 @@
             else onGround = false;
 
             // limb swing (uses AJ's existing parts by index)
-            const ch = player.children;
+            const P = player.userData.parts;
             const sw = moving && onGround ? Math.sin(walkCycle) * 0.6 : 0;
-            if (ch[9]) ch[9].rotation.x = sw;
-            if (ch[10]) ch[10].rotation.x = -sw;
-            if (ch[5]) ch[5].rotation.x = -sw * 0.7;
-            if (ch[6] && attackTimer < 0) ch[6].rotation.x = sw * 0.7;
+            P.legL.rotation.x = sw; P.legR.rotation.x = -sw;
+            P.armL.rotation.x = -sw * 0.7;
+            if (attackTimer < 0) P.armR.rotation.x = sw * 0.7 - 0.25;
 
             // attack swing
             if (attackCooldown > 0) attackCooldown -= dt;
             if (attackTimer >= 0) {
                 attackTimer += dt;
                 const s = Math.min(1, attackTimer / 0.28);
-                const ang = 1.5 - 3.0 * s; // sweep from AJ's left side across the front
+                const ang = -1.5 + 3.0 * s; // sweep from AJ's right (pipe hand) across the front
                 pipeWeapon.rotation.order = 'YXZ';
                 pipeWeapon.rotation.set(Math.PI / 2 - 0.15, ang, 0);
                 pipeWeapon.position.set(Math.sin(ang) * 0.7, 1.2, Math.cos(ang) * 0.7);
-                if (ch[6]) ch[6].rotation.x = -1.2 * Math.sin(s * Math.PI);
+                P.armR.rotation.x = -1.4 * Math.sin(s * Math.PI);
                 if (!attackHitDone && s >= 0.4) { attackHitDone = true; doAttackHit(); }
                 if (attackTimer >= 0.34) { attackTimer = -1; resetPipe(); }
             } else if (hitHeld && attackCooldown <= 0) {
@@ -2392,13 +2710,15 @@
             const cp = Math.cos(pitch);
             const ox = Math.sin(cameraAngleX) * cp, oy = Math.sin(pitch), oz = Math.cos(cameraAngleX) * cp;
             if (downed) _camTarget.y = p.y + 0.6;
+            if (window.__camTargetY !== undefined) _camTarget.y = p.y + window.__camTargetY;
             // pull camera in if a wall is between AJ and the camera
-            let dist = CAMERA_DIST;
+            const CD = window.__camDist || CAMERA_DIST;
+            let dist = CD;
             const steps = 14;
             for (let i = 1; i <= steps; i++) {
-                const d = (CAMERA_DIST * i) / steps;
-                if (pointInWalls(_camTarget.x + ox * d, _camTarget.y + oy * d, _camTarget.z + oz * d, 0.3)) {
-                    dist = Math.max(1.2, (CAMERA_DIST * (i - 1)) / steps);
+                const d = (CD * i) / steps;
+                if (pointInWalls(_camTarget.x + ox * d, _camTarget.y + oy * d, _camTarget.z + oz * d, 0.3, true)) {
+                    dist = Math.max(1.2, (CD * (i - 1)) / steps);
                     break;
                 }
             }
@@ -2455,6 +2775,7 @@
                 }
             }
             updateSteam(dt);
+            updateWater(dt);
             if (hurtFlash > 0) { hurtFlash = Math.max(0, hurtFlash - dt * 2.5); }
             $('hurt-flash').style.opacity = hurtFlash;
             if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').style.opacity = 0; }
@@ -2489,9 +2810,18 @@
             setCam: (yaw, pitch) => { cameraAngleX = yaw; cameraAngleY = pitch; updateCamera(1); },
             reachable: () => {
                 // verify every relic & girl has a nav path from spawn
-                return mapInfo.relics.concat(mapInfo.girls).map(([x, z]) => { const p = findPath(0, 0, x, z); const e = p[p.length - 1]; const pen = p.length > 1 || losClear(0, 0, x, z); return pen; });
+                const ok = (x, z) => findPath(0, 0, x, z).length > 1 || losClear(0, 0, x, z);
+                return mapInfo.relics.concat(mapInfo.girls).map(([x, z, y]) => {
+                    if (!(y > 2)) return ok(x, z);
+                    // crate-stack relic: reachable if you can walk to the foot of the stack and jump up
+                    for (let k = 0; k < 24; k++) { const a = k * Math.PI / 4, rr = 2.6 + Math.floor(k / 8) * 0.8, X = x + Math.sin(a) * rr, Z = z + Math.cos(a) * rr; if (navFree(navC(X), navC(Z)) && ok(X, Z)) return true; }
+                    return false;
+                });
             },
             freezeDrain: (on) => { window.__noDrain = on; },
+            level: () => currentLevel,
+            ajCloseup: () => { window.__camDist = 2.9; window.__camTargetY = 1.3; cameraAngleX = player.rotation.y; cameraAngleY = 0.1; updateCamera(1); },
+            camReset: () => { delete window.__camDist; delete window.__camTargetY; },
             // place AJ ~d metres from a target with a clear camera line behind him, facing the target
             frame: (tx, tz, d = 4.5) => {
                 for (let k = 0; k < 24; k++) {
