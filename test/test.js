@@ -55,12 +55,39 @@ const { chromium, devices } = require('playwright');
   await page.evaluate(() => { const [x, z] = RINSED.relicSpots()[1]; RINSED.frame(x, z, 6); });
   await W(900);
   await page.screenshot({ path: '../shot-game.png' });
+  // poster close-up (MUSTARD CRIMES guaranteed on every level)
+  const posters = await page.evaluate(() => RINSED.posters().map(p => p.crime));
+  console.log('L1 posters', posters.length, JSON.stringify(posters));
+  ok('L1 posters 8-12 incl. MUSTARD + TOO LEGIT', posters.length >= 8 && posters.length <= 12 && posters.includes('MUSTARD CRIMES') && posters.some(c => c.startsWith('BEING TOO LEGIT')));
+  console.log('poster closeup', JSON.stringify(await page.evaluate(() => RINSED.posterCloseup('MUSTARD'))));
+  await W(700);
+  await page.screenshot({ path: '../shot-poster.png' });
+  await page.evaluate(() => RINSED.relicCloseupEnd());
+  // ---- pause menu ----
+  await page.evaluate(() => RINSED.freezeDrain(false));
+  await page.tap('#btn-pause'); await W(300);
+  let p0 = await S();
+  const th0 = await page.evaluate(() => thugs.map(t => t.mesh.position.toArray().join()).join('|'));
+  await W(2500);
+  let p1 = await S();
+  const th1 = await page.evaluate(() => thugs.map(t => t.mesh.position.toArray().join()).join('|'));
+  ok('paused: state, HP frozen, thugs frozen', p0.gameState === 'paused' && p1.gameState === 'paused' && p0.hp === p1.hp && th0 === th1 && await page.isVisible('#pause-screen'));
+  await page.screenshot({ path: '../shot-pause.png' });
+  await page.tap('#btn-resume'); await W(1600);
+  p1 = await S(); ok('resume -> playing, HP drains again', p1.gameState === 'playing' && p1.hp < p0.hp);
+  const seedBefore = p1.seed;
+  await page.tap('#btn-pause'); await W(200); await page.tap('#btn-restart-level'); await W(900);
+  p1 = await S(); ok('pause > restart level: new seed, same level', p1.gameState === 'playing' && p1.seed !== seedBefore && (await page.evaluate(() => RINSED.level())) === 0);
+  await page.tap('#btn-pause'); await W(200); await page.tap('#btn-mainmenu'); await W(500);
+  ok('pause > main menu shows level select', (await S()).gameState === 'menu' && await page.isVisible('#start-screen') && !(await page.isVisible('#hud')));
+  await page.tap('#lvl-alley'); await page.tap('#btn-start'); await W(800);
+  await page.evaluate(() => RINSED.freezeDrain(true));
   // clear level 1 -> NEXT LEVEL
   await page.evaluate(() => RINSED.collectAll()); await W(1600);
   ok('level1 won + next visible', (await S()).gameState === 'won' && await page.isVisible('#btn-next'));
   await page.tap('#btn-next'); await W(900);
   st = await S();
-  ok('level transition -> riverside', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
+  ok('level transition -> tent city', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
   ok('level2 reachable', (await page.evaluate(() => RINSED.reachable())).every(Boolean));
   console.log('L2 state', JSON.stringify({ seed: st.seed, walls: st.walls, calls: st.calls, tris: st.tris, geos: st.geos }), await page.textContent('#level-name'));
   // can't walk into the river: push north across the river line (not on a bridge)
@@ -72,6 +99,11 @@ const { chromium, devices } = require('playwright');
   await page.evaluate(() => { RINSED.tp(-27, 17, -Math.PI / 2 + 0.35); RINSED.setCam(-Math.PI / 2 + 0.35, 0.3); });
   await W(900);
   await page.screenshot({ path: '../shot-river.png' });
+  await page.evaluate(() => { RINSED.tp(-20, -6, 0.9); RINSED.setCam(0.9 + Math.PI, 0.55); });
+  await W(800);
+  await page.screenshot({ path: '../shot-tentcity.png' });
+  const p2 = await page.evaluate(() => RINSED.posters().map(p => p.crime));
+  ok('L2 posters incl. MUSTARD + TOO LEGIT', p2.length >= 8 && p2.includes('MUSTARD CRIMES') && p2.some(c => c.startsWith('BEING TOO LEGIT')));
   await page.evaluate(() => { RINSED.tp(0, 8, Math.PI); RINSED.setCam(Math.PI + 0.3, 0.25); });
   await W(700);
   await page.screenshot({ path: '../shot-river2.png' });
@@ -79,20 +111,21 @@ const { chromium, devices } = require('playwright');
   await page.evaluate(() => { healers.forEach(h => h.healCd = 30); invuln = 0; RINSED.hurt(500); });
   for (let k = 0; k < 40; k++) { st = await S(); if (st.downPhase === 'reviving') break; await W(250); }
   ok('level2 revive started', st.downPhase === 'reviving');
-  await W(7500); st = await S(); ok('level2 revived to 60', !st.downed && Math.round(st.hp) >= 59);
+  for (let k = 0; k < 120; k++) { st = await S(); if (!st.downed) break; await W(250); }
+  ok('level2 revived to 60', !st.downed && Math.round(st.hp) >= 59);
   // restart level 2 (game over -> try again) => new seed, still riverside, no leaks
-  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); await W(2600);
+  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); for (let k = 0; k < 80 && (await S()).gameState !== 'dead'; k++) await W(250); await W(900);
   ok('level2 game over', (await S()).gameState === 'dead');
   const g0 = (await S()).geos;
   await page.tap('#btn-retry'); await W(900);
-  st = await S(); ok('restart stays on riverside with new seed', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
+  st = await S(); ok('restart stays on tent city with new seed', (await page.evaluate(() => RINSED.level())) === 1 && st.gameState === 'playing');
   console.log('  geometries before/after restart', g0, st.geos, 'seed', st.seed);
   // menu -> level select -> alley again
-  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); await W(2600);
+  await page.evaluate(() => { healers.forEach(h => h.reviveCd = 999); invuln = 0; RINSED.hurt(500); }); for (let k = 0; k < 80 && (await S()).gameState !== 'dead'; k++) await W(250); await W(900);
   await page.tap('#gameover-screen .btn-menu'); await W(500);
   ok('menu visible', await page.isVisible('#start-screen'));
   await page.tap('#lvl-river'); await W(200); await page.tap('#btn-start'); await W(800);
-  ok('level select riverside starts L2', (await page.evaluate(() => RINSED.level())) === 1);
+  ok('level select tent city starts L2', (await page.evaluate(() => RINSED.level())) === 1);
   await page.evaluate(() => RINSED.collectAll()); await W(1600);
   ok('L2 win hides next', (await S()).gameState === 'won' && !(await page.isVisible('#btn-next')));
   await page.tap('#win-screen .btn-menu'); await W(400);

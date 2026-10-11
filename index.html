@@ -247,6 +247,14 @@
         }
         .lvl-btn.sel { color: #fff; border-color: #00f0ff; box-shadow: 0 0 16px rgba(0, 240, 255, 0.6); background: rgba(0, 90, 120, 0.6); }
         .btn-alt { background: linear-gradient(135deg, #2a3048, #3a4060); box-shadow: 0 0 14px rgba(0, 240, 255, 0.3); font-size: clamp(1rem, 2.4vw, 1.3rem); padding: 12px 26px; }
+        #btn-pause {
+            position: absolute; top: calc(26px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+            padding: 6px 12px; border-radius: 14px; font: bold 0.75rem 'Segoe UI', Arial, sans-serif; letter-spacing: 1.5px;
+            color: #dff; background: rgba(10, 14, 26, 0.72); border: 1.5px solid rgba(0, 240, 255, 0.55); pointer-events: auto; z-index: 140;
+            touch-action: manipulation;
+        }
+        .pause-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        #pause-screen { background: rgba(6, 4, 14, 0.72); z-index: 200; }
         .level-row { font-size: 0.75rem; color: #00f0ff; letter-spacing: 2px; }
 
         /* SPEECH BUBBLES (girls speak Japanese, English subtitle) */
@@ -342,6 +350,7 @@
             <div class="medic-row">MEDICS <span id="medic-count">4</span></div>
             <div class="level-row" id="level-name">LV1 ALLEYWAY</div>
         </div>
+        <button id="btn-pause" aria-label="Pause menu">&#10073;&#10073; MENU</button>
         <div id="toast"></div>
         <div id="hurt-flash"></div>
         <div id="camera-zone"></div>
@@ -365,7 +374,7 @@
         </div>
         <div class="lvl-row">
             <button id="lvl-alley" class="lvl-btn sel">1 &bull; ALLEYWAY</button>
-            <button id="lvl-river" class="lvl-btn">2 &bull; RIVERSIDE</button>
+            <button id="lvl-river" class="lvl-btn">2 &bull; TENT CITY</button>
         </div>
         <button id="btn-start" class="btn">Start</button>
     </div>
@@ -388,6 +397,16 @@
         <div class="lvl-row">
             <button id="btn-retry" class="btn">Try Again</button>
             <button class="btn btn-alt btn-menu">Levels</button>
+        </div>
+    </div>
+
+    <div id="pause-screen" class="overlay" style="display:none;">
+        <div class="title-logo">PAUSED</div>
+        <div class="subtitle" id="pause-level"></div>
+        <div class="pause-col">
+            <button id="btn-resume" class="btn">Resume</button>
+            <button id="btn-restart-level" class="btn btn-alt">Restart Level</button>
+            <button id="btn-mainmenu" class="btn btn-alt">Main Menu</button>
         </div>
     </div>
 
@@ -507,7 +526,7 @@
             scene.background = new THREE.Color(0x1a1530);
             scene.fog = new THREE.Fog(0x1a1530, 16, 88); // lighter fog, longer draw distance
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 95);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 150);
 
             renderer = new THREE.WebGLRenderer({ canvas: $('canvas3d'), antialias: true, powerPreference: 'high-performance' });
             renderer.setPixelRatio(1);
@@ -612,14 +631,15 @@
             const L = (map) => phong({ map });
             const M = {};
             for (const k in T) M[k] = T[k].isTexture ? L(T[k]) : T[k];
+            M.tattooArm.map.repeat.set(2, 3); // wraps the capsule arms with dense sleeve ink
             TEX.aj = M;
             return M;
         }
         function createCharacterAJ() {
             player = new THREE.Group();
             const M = ajTextures();
-            const B = (w, h, d, mats, x, y, z, parent) => {
-                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats);
+            const B = (w, h, d, mats, x, y, z, parent, r) => {
+                const m = new THREE.Mesh(rboxGeo(w, h, d, r !== undefined ? r : Math.min(w, h, d) * 0.45), mats);
                 m.position.set(x, y, z); (parent || player).add(m); return m;
             };
             const six = (side, front, top, back) => [side, side, top || side, top || side, front || side, back || side];
@@ -629,30 +649,32 @@
             for (const s of [-1, 1]) {
                 const hip = new THREE.Group(); hip.position.set(0.18 * s, 0.86, 0); player.add(hip);
                 B(0.32, 0.36, 0.34, six(M.shorts, M.shorts), 0, -0.18, 0, hip);
-                B(0.24, 0.42, 0.25, M.skinTex, 0, -0.55, 0, hip);
-                B(0.27, 0.1, 0.38, [M.skin, M.skin, M.foot, M.skin, M.skin, M.skin], 0, -0.81, 0.06, hip);
+                const shin = new THREE.Mesh(capsuleGeo(0.1, 0.36, 0.12, 12), M.skinTex); shin.position.y = -0.55; hip.add(shin);
+                B(0.26, 0.12, 0.38, [M.skin, M.skin, M.foot, M.skin, M.skin, M.skin], 0, -0.81, 0.06, hip, 0.06);
                 legs.push(hip);
             }
-            B(0.76, 0.22, 0.46, six(M.shorts, M.shortsFront), 0, 0.96, 0);              // shorts waist with drawstrings
-            const torso = B(0.84, 0.7, 0.54, six(M.shirt, M.shirtFront), 0, 1.4, 0.02);   // stocky t-shirt torso
-            B(0.28, 0.13, 0.28, [M.neck, M.neck, M.skin, M.skin, M.neck, M.neck], 0, 1.8, 0); // neck tattoo
-            const head = B(0.44, 0.46, 0.42, [M.headSide, M.headSide, M.hairTop, M.skin, M.face, M.headBack], 0, 2.08, 0.01);
-            B(0.45, 0.05, 0.43, M.hairTop, 0, 2.32, 0.0);                                // buzz cut cap
+            B(0.76, 0.24, 0.48, six(M.shorts, M.shortsFront), 0, 0.96, 0, null, 0.12);              // shorts waist with drawstrings
+            const torso = B(0.84, 0.72, 0.54, six(M.shirt, M.shirtFront), 0, 1.4, 0.02, null, 0.22);   // stocky t-shirt torso
+            B(0.28, 0.16, 0.28, [M.neck, M.neck, M.skin, M.skin, M.neck, M.neck], 0, 1.8, 0, null, 0.13); // neck tattoo
+            const head = B(0.44, 0.47, 0.42, [M.headSide, M.headSide, M.hairTop, M.skin, M.face, M.headBack], 0, 2.08, 0.01, null, 0.17);
+            const cap = new THREE.Mesh(GEO.ajCap || (GEO.ajCap = new THREE.SphereGeometry(0.24, 16, 6, 0, Math.PI * 2, 0, Math.PI * 0.4)), M.hairTop);
+            cap.scale.set(0.97, 0.62, 0.92); cap.position.set(0, 2.175, 0.0); player.add(cap); // rounded buzz-cut cap
             // arms (pivot at the shoulder): short black sleeves, full tattoo sleeves, emblem on his LEFT (+x) sleeve
             const arms = {};
             for (const s of [-1, 1]) {
                 const sh = new THREE.Group(); sh.position.set(0.53 * s, 1.66, 0); player.add(sh);
                 const sleeveOuter = s === 1 ? M.sleeveEmblem : M.shirt;
                 B(0.3, 0.32, 0.32, s === 1 ? [sleeveOuter, M.shirt, M.shirt, M.shirt, sleeveOuter, M.shirt] : M.shirt, 0, -0.14, 0, sh);
-                B(0.23, 0.26, 0.24, M.tattooArm, 0, -0.4, 0, sh);
-                B(0.21, 0.34, 0.22, M.tattooArm, 0, -0.68, 0.01, sh);
-                B(0.2, 0.17, 0.21, M.skinTex, 0, -0.93, 0.02, sh);
+                const arm = new THREE.Mesh(capsuleGeo(0.1, 0.5, 0.115, 12), M.tattooArm); // one smooth tattooed arm
+                arm.position.set(0, -0.55, 0.01); sh.add(arm);
+                const hand = new THREE.Mesh(GEO.ajHand || (GEO.ajHand = new THREE.SphereGeometry(0.105, 12, 8)), M.skinTex);
+                hand.scale.set(0.95, 1.05, 1); hand.position.set(0, -0.92, 0.02); sh.add(hand);
                 arms[s === 1 ? 'L' : 'R'] = sh;
             }
             // Melee Pipe Weapon (in his right hand)
             pipeWeapon = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.1, 10), phong({ color: 0x8a949c }));
             player.add(pipeWeapon);
-            const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), phong({ color: 0x5a6068 }));
+            const elbow = new THREE.Mesh(rboxGeo(0.13, 0.13, 0.13, 0.04), phong({ color: 0x5a6068 }));
             elbow.position.y = 0.55; pipeWeapon.add(elbow);
             player.userData.parts = { legL: legs[1], legR: legs[0], armL: arms.L, armR: arms.R, head, torso };
             player.position.set(0, 0, 0);
@@ -736,7 +758,9 @@
             return pixTex(128, 32, (g) => {
                 px(g, 0, 0, '#0c0a14', 128, 32);
                 px(g, 2, 2, color, 124, 2); px(g, 2, 28, color, 124, 2); px(g, 2, 2, color, 2, 28); px(g, 124, 2, color, 2, 28);
-                g.font = 'bold italic 20px Impact, Arial Black, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+                let fs = 20; g.font = `bold italic ${fs}px Impact, Arial Black, sans-serif`;
+                while (g.measureText(text).width > 112 && fs > 9) { fs -= 1; g.font = `bold italic ${fs}px Impact, Arial Black, sans-serif`; }
+                g.textAlign = 'center'; g.textBaseline = 'middle';
                 g.fillStyle = color; g.fillText(text, 65, 17); g.fillStyle = '#fff'; g.fillText(text, 64, 16);
             });
         }
@@ -854,6 +878,42 @@
         /* --- GEOMETRY BATCHER (merges static props into a few draw calls) --- */
         const _bm = new THREE.Matrix4(), _bq = new THREE.Quaternion(), _be = new THREE.Euler(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3();
         const GEO = {};
+        // Rounded box: box grid whose vertices are pulled onto a rounded shell of radius r.
+        // Keeps per-face UVs/material groups (so face textures still work) with smooth normals.
+        const RBOX = {};
+        function rboxGeo(w, h, d, r, seg) {
+            r = Math.max(0.001, Math.min(r, w / 2, h / 2, d / 2) * 0.999);
+            seg = seg || (Math.max(w, h, d) > 0.4 ? 5 : Math.max(w, h, d) > 0.15 ? 3 : 2);
+            const key = [w, h, d, r, seg].map(v => +(+v).toFixed(3)).join('_');
+            if (RBOX[key]) return RBOX[key];
+            const g = new THREE.BoxGeometry(w, h, d, seg, seg, seg);
+            const p = g.attributes.position, n = g.attributes.normal;
+            const hw = w / 2 - r, hh = h / 2 - r, hd = d / 2 - r, v = new THREE.Vector3(), c = new THREE.Vector3();
+            for (let i = 0; i < p.count; i++) {
+                v.fromBufferAttribute(p, i);
+                c.set(Math.max(-hw, Math.min(hw, v.x)), Math.max(-hh, Math.min(hh, v.y)), Math.max(-hd, Math.min(hd, v.z)));
+                v.sub(c);
+                if (v.lengthSq() < 1e-12) v.fromBufferAttribute(n, i); else v.normalize();
+                n.setXYZ(i, v.x, v.y, v.z);
+                p.setXYZ(i, c.x + v.x * r, c.y + v.y * r, c.z + v.z * r);
+            }
+            g.userData.sharedGeo = true;
+            return (RBOX[key] = g);
+        }
+        // capsule (cylinder with hemispherical ends) via LatheGeometry; rTop may taper
+        function capsuleGeo(r, len, rTop, segs) {
+            rTop = rTop || r; segs = segs || 10;
+            const k = 'cap' + [r, len, rTop, segs].join('_');
+            if (GEO[k]) return GEO[k];
+            const pts = [];
+            for (let i = 0; i <= 3; i++) { const a = -Math.PI / 2 + i / 3 * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.001, r * Math.cos(a)), -len / 2 + r * Math.sin(a))); }
+            for (let i = 0; i <= 3; i++) { const a = i / 3 * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.001, rTop * Math.cos(a)), len / 2 + rTop * Math.sin(a))); }
+            const g = new THREE.LatheGeometry(pts, segs);
+            // remap v by height so textures (tattoo sleeves) spread along the whole limb, not just the caps
+            const p = g.attributes.position, uv = g.attributes.uv, y0 = -len / 2 - r, y1 = len / 2 + rTop;
+            for (let i = 0; i < p.count; i++) uv.setY(i, (p.getY(i) - y0) / (y1 - y0));
+            return (GEO[k] = g);
+        }
         function unitBox() { return GEO.box || (GEO.box = new THREE.BoxGeometry(1, 1, 1)); }
         class Batch {
             constructor() { this.pos = []; this.nor = []; this.uv = []; }
@@ -898,19 +958,212 @@
 
         function addWall(minX, maxX, minZ, maxZ, h) { cityWalls.push({ minX, maxX, minZ, maxZ, h }); }
 
+        /* --- WANTED POSTERS (canvas-drawn stylized AJ, not the photo) --- */
+        const POSTER_CRIMES = [
+            ['MUSTARD CRIMES'],
+            ['BEING TOO LEGIT', 'AND TOO LEGIT TO QUIT'],
+            ['CRIMES AGAINST', 'FLIP-FLOPS'],
+            ['PUBLIC BOARD-SHORTS', 'INDECENCY'],
+            ['ASSAULT WITH A', 'DEADLY PIPE'],
+            ['LOITERING WITH', 'INTENT TO VIBE'],
+            ['STEALING THE LAST', 'PIZZA SLICE'],
+            ['EXCESSIVE', 'NECK TATTOOS'],
+            ['IMPERSONATING', 'A DUMPSTER']
+        ];
+        const POSTER_REWARDS = ['$5 AND A HALF SANDWICH', 'ONE (1) USED LIGHTER', 'EXPIRED BUS PASS', 'A GENTLY USED SOCK', '3 PACKETS OF KETCHUP', 'HIGH FIVE (MAYBE)', 'COUPON: 10% OFF NOTHING', 'HALF A SCRATCH TICKET', 'EXPIRED BUS PASS'];
+        function drawAJPortrait(g, x, y, w, h) {
+            // mugshot backdrop with height lines
+            px(g, x, y, '#cfc8b4', w, h);
+            g.fillStyle = 'rgba(60,50,40,0.35)'; for (let k = 1; k < 7; k++) g.fillRect(x, y + k * h / 7, w, 0.6);
+            const s = Math.min(w / 56, h / 76), cx = x + w / 2; y += (h - 76 * s) / 2;
+            const R = (rx, ry, rw, rh, c, rad) => { g.fillStyle = c; g.beginPath(); if (g.roundRect) g.roundRect(cx + rx * s, y + ry * s, rw * s, rh * s, (rad || 0) * s); else g.rect(cx + rx * s, y + ry * s, rw * s, rh * s); g.fill(); };
+            R(-27, 46, 54, 30, '#141418', 10);                 // black tee shoulders
+            g.fillStyle = '#f0582a'; g.beginPath(); g.arc(cx + 19 * s, y + 55 * s, 5 * s, 0, 7); g.fill();   // orange emblem (his left shoulder)
+            g.fillStyle = '#141418'; g.beginPath(); g.arc(cx + 19 * s, y + 55 * s, 3 * s, 0, 7); g.fill();
+            R(-7, 36, 14, 14, '#e2ac8c', 3);                   // neck
+            g.fillStyle = '#26283a'; for (let k = 0; k < 9; k++) g.fillRect(cx + (-6 + (k * 5) % 12) * s, y + (39 + (k * 3) % 9) * s, 3 * s, 1.4 * s); // neck tattoo
+            R(-14, 8, 28, 33, '#e9b494', 12);                  // head
+            R(-15.5, 19, 3, 7, '#d89c7c', 1.5); R(12.5, 19, 3, 7, '#d89c7c', 1.5); // ears
+            R(-14, 6, 28, 9, '#dcc488', 6);                    // blond buzz cut
+            g.fillStyle = '#bba068'; for (let k = 0; k < 14; k++) g.fillRect(cx + (-12 + (k * 7) % 24) * s, y + (8 + (k * 3) % 6) * s, 1.2 * s, 1.2 * s);
+            R(-10, 18, 7, 1.6, '#c09868'); R(3, 18, 7, 1.6, '#c09868');              // light brows
+            R(-9, 21, 5, 3, '#ffffff', 1); R(4, 21, 5, 3, '#ffffff', 1);
+            R(-7.5, 21, 2.4, 3, '#4a6070'); R(5.5, 21, 2.4, 3, '#4a6070');           // eyes
+            R(-1.2, 22, 2.4, 7, '#d89c7c', 1);                                         // nose
+            g.fillStyle = 'rgba(150,115,70,0.75)';                                     // stubble beard
+            for (let yy = 27; yy < 41; yy += 1.6) for (let xx = -13; xx <= 13; xx += 1.6) if ((xx * xx) / 196 + ((yy - 24) * (yy - 24)) / 290 < 1 && ((xx * 7 + yy * 13) | 0) % 3) g.fillRect(cx + xx * s, y + yy * s, 1.1 * s, 1.1 * s);
+            R(-4.5, 32, 9, 1.8, '#8a4a3a', 1);                                         // deadpan mouth
+            // placard
+            R(-16, 66, 32, 8, '#202024', 1);
+            g.fillStyle = '#e8e0c8'; g.font = `bold ${5 * s}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.fillText('AJ-0420', cx, y + 70 * s);
+        }
+        function fitText(g, text, x, y, maxW, size, font, color) {
+            let sz = size; g.font = `${font} ${sz}px ${'Georgia, "Times New Roman", serif'}`;
+            while (g.measureText(text).width > maxW && sz > 5) { sz -= 0.5; g.font = `${font} ${sz}px Georgia, "Times New Roman", serif`; }
+            g.fillStyle = color; g.fillText(text, x, y);
+        }
+        function posterMaterial(k) {
+            TEX.posterMats = TEX.posterMats || [];
+            if (TEX.posterMats[k]) return TEX.posterMats[k];
+            const crime = POSTER_CRIMES[k], reward = POSTER_REWARDS[k % POSTER_REWARDS.length];
+            const W_ = 128, H_ = 192;
+            const tex = pixTex(W_, H_, (g) => {
+                // aged paper with stains, burnt-ish edges
+                px(g, 0, 0, '#dcc89c', W_, H_);
+                let sd = 99 + k * 31; const r = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+                for (let i = 0; i < 260; i++) px(g, r() * W_, r() * H_, `rgba(${120 + r() * 40 | 0},${90 + r() * 30 | 0},50,${0.08 + r() * 0.12})`, 1 + r() * 3, 1 + r() * 3);
+                for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(140,100,50,0.12)'; g.beginPath(); g.arc(r() * W_, r() * H_, 8 + r() * 14, 0, 7); g.fill(); }
+                const grad = (x0, y0, x1, y1) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, 'rgba(90,60,30,0.55)'); gr.addColorStop(1, 'rgba(90,60,30,0)'); return gr; };
+                g.fillStyle = grad(0, 0, 10, 0); g.fillRect(0, 0, 10, H_); g.fillStyle = grad(W_, 0, W_ - 10, 0); g.fillRect(W_ - 10, 0, 10, H_);
+                g.fillStyle = grad(0, 0, 0, 10); g.fillRect(0, 0, W_, 10); g.fillStyle = grad(0, H_, 0, H_ - 10); g.fillRect(0, H_ - 10, W_, 10);
+                g.strokeStyle = '#3a2a1a'; g.lineWidth = 1.5; g.strokeRect(5, 5, W_ - 10, H_ - 10);
+                g.textAlign = 'center'; g.textBaseline = 'middle';
+                fitText(g, 'WANTED', W_ / 2, 21, W_ - 16, 26, 'bold', '#2a1a10');
+                g.fillStyle = '#2a1a10'; g.fillRect(14, 35, W_ - 28, 1.2);
+                fitText(g, 'THUNDER BAY POLICE (NOT REALLY)', W_ / 2, 42, W_ - 22, 7, 'bold', '#5a2a1a');
+                drawAJPortrait(g, 26, 49, 76, 80);
+                fitText(g, 'FOR', W_ / 2, 137, 40, 7, 'italic', '#3a2a1a');
+                fitText(g, crime[0], W_ / 2, 148, W_ - 16, 12, 'bold', '#8a1a10');
+                if (crime[1]) fitText(g, crime[1], W_ / 2, 160, W_ - 16, crime.length > 1 && k === 1 ? 9 : 12, 'bold', '#8a1a10');
+                fitText(g, 'REWARD', W_ / 2, crime[1] ? 172 : 165, 60, 8, 'bold', '#2a1a10');
+                fitText(g, reward, W_ / 2, crime[1] ? 181 : 176, W_ - 18, 8.5, 'bold', '#2a1a10');
+            });
+            tex.anisotropy = 4;
+            return (TEX.posterMats[k] = phong({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.28, shininess: 4 }));
+        }
+        // spots: [{x, y, z, ry}] facing direction ry (plane normal = +z rotated by ry)
+        function placePosters(spots, count) {
+            const geo = GEO.poster || (GEO.poster = new THREE.PlaneGeometry(1.1, 1.65));
+            // guaranteed: MUSTARD CRIMES and TOO LEGIT at least once per level, then a shuffled mix
+            const rest = POSTER_CRIMES.map((_, i) => i).slice(2).sort(() => srand() - 0.5);
+            const order = [0, 1].concat(rest);
+            while (order.length < count) order.push(2 + Math.floor(srand() * (POSTER_CRIMES.length - 2)));
+            const placed = [];
+            for (let n = 0; n < count && spots.length; n++) {
+                const sp = spots.splice(Math.floor(srand() * spots.length), 1)[0];
+                const m = new THREE.Mesh(geo, posterMaterial(order[n]));
+                m.userData.sharedGeo = true;
+                m.position.set(sp.x, sp.y, sp.z);
+                m.rotation.set(0, sp.ry, (srand() - 0.5) * 0.12, 'YXZ');
+                cityGroup.add(m);
+                placed.push({ x: sp.x, y: sp.y, z: sp.z, ry: sp.ry, crime: POSTER_CRIMES[order[n]].join(' ') });
+            }
+            return placed;
+        }
+
+        /* --- THUNDER BAY KIT: skyline backdrop, snow, hydro poles, bus stops, trees, trucks, trestle --- */
+        function backdropMaterial(L) {
+            const key = 'backdrop_' + L.id;
+            if (TEX[key]) return TEX[key];
+            const bgCss = '#' + new THREE.Color(L.bg).getHexString();
+            const horizonCss = L.horizon || '#6a3a5a';
+            const tex = pixTex(512, 128, (g) => {
+                const gr = g.createLinearGradient(0, 0, 0, 104);
+                gr.addColorStop(0, bgCss); gr.addColorStop(0.55, bgCss); gr.addColorStop(1, horizonCss);
+                g.fillStyle = gr; g.fillRect(0, 0, 512, 104);
+                let sd = 7; const r = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+                for (let i = 0; i < 70; i++) px(g, r() * 512, r() * 50, `rgba(255,255,255,${0.2 + r() * 0.5})`, 0.8, 0.8); // stars
+                // Lake Superior
+                const lk = g.createLinearGradient(0, 100, 0, 128); lk.addColorStop(0, L.lake || '#1c2238'); lk.addColorStop(1, '#0a0c16');
+                g.fillStyle = lk; g.fillRect(0, 100, 512, 28);
+                for (let i = 0; i < 60; i++) px(g, r() * 512, 101 + r() * 20, `rgba(255,190,140,${0.08 + r() * 0.15})`, 3 + r() * 10, 0.6);
+                // the Sleeping Giant lying on the lake
+                const sil = L.sil || '#18142a';
+                g.fillStyle = sil; g.beginPath();
+                const giant = [[30, 101], [48, 99], [58, 96], [64, 91], [70, 87], [76, 86], [81, 88], [85, 91], [92, 92], [100, 89], [112, 85], [126, 83], [138, 84], [146, 87], [158, 88], [170, 85], [180, 84], [190, 87], [200, 92], [214, 97], [232, 100], [250, 101]];
+                g.moveTo(giant[0][0], giant[0][1]); giant.forEach(([x, y]) => g.lineTo(x, y)); g.closePath(); g.fill();
+                // far shore + grain elevators
+                g.fillRect(250, 99, 262, 3);
+                for (let k = 0; k < 3; k++) {
+                    const x0 = 300 + k * 62, n = 6 + (k % 2) * 3;
+                    for (let c = 0; c < n; c++) { g.fillRect(x0 + c * 3.2, 82 + (c % 2), 2.8, 18); g.beginPath(); g.arc(x0 + c * 3.2 + 1.4, 82 + (c % 2), 1.4, Math.PI, 0); g.fill(); }
+                    g.fillRect(x0 + n * 1.2, 72, 6, 28); g.fillRect(x0 + n * 1.2 - 2, 76, 10, 3);
+                    px(g, x0 + n * 1.2 + 2, 71, '#ff3a2a', 1.2, 1.2);
+                }
+                g.fillRect(0, 99, 30, 3);
+                for (let i = 0; i < 90; i++) px(g, 230 + r() * 282, 96 + r() * 5, `rgba(255,${200 + r() * 40 | 0},120,${0.4 + r() * 0.5})`, 0.9, 0.9); // city lights
+                for (let i = 0; i < 25; i++) px(g, r() * 30, 97 + r() * 4, 'rgba(255,220,140,0.6)', 0.9, 0.9);
+            });
+            tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(1, 1);
+            return (TEX[key] = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false }));
+        }
+        function addBackdrop(L) {
+            const m = new THREE.Mesh(new THREE.CylinderGeometry(130, 130, 70, 32, 1, true), backdropMaterial(L));
+            m.position.y = 25; m.rotation.y = L.backdropYaw || 0; m.renderOrder = -10;
+            cityGroup.add(m);
+        }
+        function busStopMaterial() {
+            if (TEX.busStop) return TEX.busStop;
+            const t = pixTex(32, 48, (g) => {
+                px(g, 0, 0, '#1a4aa8', 32, 48); px(g, 1, 1, '#f0f0f0', 30, 46); px(g, 3, 3, '#1a4aa8', 26, 42);
+                g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+                g.font = 'bold 6px Arial, sans-serif'; g.fillText('TRANSIT', 16, 9);
+                px(g, 8, 15, '#ffffff', 16, 10); px(g, 9, 16, '#7ab0ff', 6, 4); px(g, 16, 16, '#7ab0ff', 6, 4); px(g, 10, 25, '#222', 3, 3); px(g, 19, 25, '#222', 3, 3);
+                g.font = 'bold 5px Arial, sans-serif'; g.fillText('BUS STOP', 16, 34); g.fillText('#42', 16, 41);
+            });
+            return (TEX.busStop = phong({ map: t, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.25 }));
+        }
+        function ensureTBayTextures() {
+            if (TEX.snow) return;
+            TEX.snow = phong({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#dfe6f0', 32, 32); for (let i = 0; i < 90; i++) px(g, srandT() * 32, srandT() * 32, pickc(['#c8d2e0', '#f2f6fa', '#b8a898', '#d0d8e4']), 2, 2); }), specular: 0x445566, shininess: 30 });
+            TEX.snowPatch = new THREE.MeshPhongMaterial({ map: pixTex(64, 64, (g) => {
+                g.clearRect(0, 0, 64, 64);
+                for (let i = 0; i < 26; i++) { g.fillStyle = `rgba(225,232,242,${0.5 + srandT() * 0.4})`; g.beginPath(); g.arc(14 + srandT() * 36, 14 + srandT() * 36, 4 + srandT() * 10, 0, 7); g.fill(); }
+            }), transparent: true, depthWrite: false, specular: 0x334455, shininess: 25, polygonOffset: true, polygonOffsetFactor: -2 });
+            TEX.hydroWood = phong({ color: 0x4a3626 });
+            TEX.spruce = phong({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#1a3a26', 32, 32); for (let i = 0; i < 120; i++) px(g, srandT() * 32, srandT() * 32, pickc(['#224a30', '#14301e', '#2a5236']), 2, 1); for (let i = 0; i < 18; i++) px(g, srandT() * 32, srandT() * 32, '#d8e0ea', 2, 1); }) });
+            TEX.birch = phong({ map: pixTex(16, 32, (g) => { px(g, 0, 0, '#e8e4dc', 16, 32); for (let i = 0; i < 22; i++) px(g, srandT() * 16, srandT() * 32, '#2a2622', 2 + srandT() * 5, 1); }) });
+            TEX.birchLeaf = phong({ color: 0xb8a040 });
+            TEX.trestle = phong({ color: 0x4a2a24, specular: 0x222222, shininess: 12 });
+            TEX.trucks = [0x8a1e1e, 0x1e2e5a, 0xd8d8d0, 0x5a3a1e, 0x2e4a2e].map(c => phong({ color: c, specular: 0x666666, shininess: 50 }));
+            TEX.truckGlass = phong({ color: 0x141a24, specular: 0x8899aa, shininess: 90 });
+        }
+        function addSpruce(b, x, z, s) {
+            b.trunk.box(0.22, 1.2 * s, 0.22, x, 0.6 * s, z);
+            const cone = GEO.spruceCone || (GEO.spruceCone = new THREE.ConeGeometry(1, 1.6, 9));
+            for (let k = 0; k < 3; k++) b.spruce.add(cone, x, (1.4 + k * 1.05) * s, z, k, 0, 0, (1.15 - k * 0.3) * s, (1.15 - k * 0.12) * s, (1.15 - k * 0.3) * s);
+            addWall(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 4);
+        }
+        function addBirch(b, x, z, s) {
+            const tr = GEO.birchTrunk || (GEO.birchTrunk = new THREE.CylinderGeometry(0.1, 0.14, 1, 9));
+            b.birch.add(tr, x, 2.2 * s, z, 0, 0, 0, s, 4.4 * s, s);
+            const blob = GEO.leafBlob || (GEO.leafBlob = new THREE.IcosahedronGeometry(1, 1));
+            b.leaf.add(blob, x + 0.2, 4.4 * s, z, 0, 0, 0, 1.0 * s, 0.9 * s, 1.0 * s);
+            b.leaf.add(blob, x - 0.3, 3.7 * s, z + 0.2, 1, 0, 0, 0.75 * s, 0.7 * s, 0.75 * s);
+            addWall(x - 0.2, x + 0.2, z - 0.2, z + 0.2, 4);
+        }
+        function addTruck(b, x, z, ry, col) {
+            const c = Math.cos(ry), s = Math.sin(ry), at = (u, w) => [x + c * u + s * w, z - s * u + c * w];
+            const body = b.trucks[col];
+            body.box(4.8, 0.7, 1.85, x, 0.8, z, ry, 0, 0);
+            let p = at(0.85, 0); body.box(1.9, 0.75, 1.75, p[0], 1.52, p[1], ry);
+            p = at(0.85, 0); b.glass.box(1.6, 0.5, 1.78, p[0], 1.6, p[1], ry);
+            p = at(-1.25, 0.88); body.box(2.2, 0.45, 0.08, p[0], 1.35, p[1], ry);
+            p = at(-1.25, -0.88); body.box(2.2, 0.45, 0.08, p[0], 1.35, p[1], ry);
+            p = at(-2.36, 0); body.box(0.08, 0.45, 1.8, p[0], 1.35, p[1], ry);
+            const wheel = GEO.truckWheel || (GEO.truckWheel = new THREE.CylinderGeometry(0.38, 0.38, 0.3, 12));
+            for (const [u, w] of [[1.55, 0.9], [1.55, -0.9], [-1.5, 0.9], [-1.5, -0.9]]) { p = at(u, w); b.tire.add(wheel, p[0], 0.38, p[1], ry, 0, Math.PI / 2); }
+            p = at(2.42, 0); b.glass.box(0.06, 0.2, 1.5, p[0], 0.95, p[1], ry); // grille
+            const hx = Math.abs(c) * 2.4 + Math.abs(s) * 0.95, hz = Math.abs(s) * 2.4 + Math.abs(c) * 0.95;
+            addWall(x - hx, x + hx, z - hz, z + hz, 1.9);
+        }
+
         /* --- LEVELS --- */
         const LEVELS = [
             {
                 id: 'alley', name: 'ALLEYWAY', sub: 'Alleyway Adventure', river: false,
                 bg: 0x1a1530, fogNear: 16, fogFar: 88, hemiSky: 0x8a86c8, hemiGround: 0x2a1a22, hemiI: 0.75, amb: 0x30283c, ambI: 0.45, moon: 0xa8b4ff, moonI: 0.5,
                 lamp: 0xffb060, pool: 0x8a5a24, warm: 0xffa050, barrels: 7,
-                signs: [['RINSED', '#2ad8ff', 0x2ad8ff], ['BAR', '#ff2a8a', 0xff2a8a], ['PAWN', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['MOTEL', '#ff2a8a', 0xff2a8a], ['NOODLE', '#2ad8ff', 0x2ad8ff], ['ARCADE', '#ffd02a', 0xffd02a], ['TATTOO', '#b04aff', 0xb04aff], ['LIQUOR', '#6aff3a', 0x6aff3a]]
+                horizon: '#5a3a6a', lake: '#1a2034', sil: '#120f20', backdropYaw: 0.6,
+                signs: [['THE ALLEY BAR', '#ff2a8a', 0xff2a8a], ['PERSIANS', '#2ad8ff', 0x2ad8ff], ['BEER', '#ffd02a', 0xffd02a], ['PAWN', '#ff6a2a', 0xff6a2a], ['RINSED', '#2ad8ff', 0x2ad8ff], ['HOTEL', '#ff2a8a', 0xff2a8a], ['PIZZA', '#6aff3a', 0x6aff3a], ['TATTOO', '#b04aff', 0xb04aff], ['24H', '#6aff3a', 0x6aff3a]]
             },
             {
-                id: 'river', name: 'RIVERSIDE', sub: 'Riverside Camp', river: true,
+                id: 'river', name: 'TENT CITY', sub: 'Tent City', river: true,
                 bg: 0x34203a, fogNear: 15, fogFar: 84, hemiSky: 0xc08a90, hemiGround: 0x1a1420, hemiI: 0.7, amb: 0x3a2a34, ambI: 0.45, moon: 0xffa080, moonI: 0.35,
-                lamp: 0xff9030, pool: 0x9a5010, warm: 0xff8a28, barrels: 11,
-                signs: [['PIER 9', '#2ad8ff', 0x2ad8ff], ['MOTEL', '#ff2a8a', 0xff2a8a], ['DINER', '#ff6a2a', 0xff6a2a], ['24H', '#6aff3a', 0x6aff3a], ['LIQUOR', '#ff2a8a', 0xff2a8a], ['CAFE', '#2ad8ff', 0x2ad8ff], ['TAXI', '#ffd02a', 0xffd02a], ['BRIDGE ST', '#b04aff', 0xb04aff], ['HOTEL', '#6aff3a', 0x6aff3a]]
+                lamp: 0xff9030, pool: 0x9a5010, warm: 0xff8a28, barrels: 14,
+                horizon: '#c0606a', lake: '#2a2a44', sil: '#1c1428', backdropYaw: 2.2,
+                signs: [['BAIT & TACKLE', '#2ad8ff', 0x2ad8ff], ['MOTEL', '#ff2a8a', 0xff2a8a], ['BEER', '#ffd02a', 0xffd02a], ['PERSIANS', '#6aff3a', 0x6aff3a], ['DINER', '#ff6a2a', 0xff6a2a], ['CAFE', '#2ad8ff', 0x2ad8ff], ['TAXI', '#ffd02a', 0xffd02a], ['BRIDGE ST', '#b04aff', 0xb04aff], ['HOTEL', '#6aff3a', 0x6aff3a]]
             }
         ];
         let currentLevel = 0, selectedLevel = 0;
@@ -944,7 +1197,7 @@
             TEX.concrete = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#6a6a70', 32, 32); for (let i = 0; i < 200; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#5e5e64', '#727278', '#606068']), 1, 1); px(g, 0, 0, '#4e4e54', 32, 1); px(g, 0, 0, '#4e4e54', 1, 32); px(g, 4, 20, 'rgba(20,20,30,0.3)', 10, 8); }) });
             TEX.paving = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#4a4850', 32, 32); for (let y = 0; y < 32; y += 8) for (let x = (y / 8 % 2) * 4; x < 32; x += 8) px(g, x + 1, y + 1, pickc(['#56545c', '#504e56', '#5c5a62']), 6, 6); }, true) });
             TEX.tent = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#2a5ab8', 32, 32); for (let i = 0; i < 70; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#244ea0', '#3266c8', '#1e4490']), 2, 1); px(g, 0, 15, '#1a3a80', 32, 2); px(g, 15, 0, '#1a3a80', 1, 32); }, true), side: THREE.DoubleSide });
-            TEX.tentGrey = lambert({ map: pixTex(16, 16, (g) => { px(g, 0, 0, '#5a6470', 16, 16); for (let i = 0; i < 30; i++) px(g, srandT() * 16 | 0, srandT() * 16 | 0, '#4a5460'); px(g, 0, 7, '#3a444e', 16, 1); }, true), side: THREE.DoubleSide });
+            TEX.tentGrey = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#56703a', 32, 16); px(g, 0, 16, '#b8622a', 32, 16); for (let i = 0; i < 50; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, 'rgba(0,0,0,0.15)', 2, 1); px(g, 15, 0, '#2a2a22', 1, 32); px(g, 0, 15, '#e0d8c0', 32, 1); }, true), side: THREE.DoubleSide }); // olive/orange tents
             TEX.tarp = lambert({ map: pixTex(32, 32, (g) => { px(g, 0, 0, '#3a7ad8', 32, 32); for (let i = 0; i < 60; i++) px(g, srandT() * 32 | 0, srandT() * 32 | 0, pickc(['#346ec8', '#4486e0']), 3, 1); for (const [x, y] of [[1, 1], [29, 1], [1, 29], [29, 29]]) px(g, x, y, '#d8d8d8', 2, 2); }, true), side: THREE.DoubleSide });
             TEX.bags = ['#7a2a2a', '#2a5a3a', '#2a2e5a', '#6a5a2a'].map(c => lambert({ color: new THREE.Color(c) }));
             TEX.bikeRed = lambert({ color: 0xa02a2a });
@@ -1011,7 +1264,10 @@
                 for (const x of [ox0 + 0.9, ox1 - 0.9]) {
                     ov.box(1.2, 6.9, 1.2, x, 3.45, z);
                     ov.box(1.6, 0.4, 1.6, x, 6.75, z);
-                    if (!pointInWalls(x, 1, z, 0)) addWall(x - 0.6, x + 0.6, z - 0.6, z + 0.6, 7);
+                    if (!pointInWalls(x, 1, z, 0)) {
+                        addWall(x - 0.6, x + 0.6, z - 0.6, z + 0.6, 7);
+                        posterSpotsExtra.push({ x, y: 1.8, z: z + 0.62, ry: 0 }, { x, y: 1.8, z: z - 0.62, ry: Math.PI });
+                    }
                 }
                 ov.box(ox1 - ox0, 0.6, 1.0, (ox0 + ox1) / 2, 6.6, z); // cross beam
             }
@@ -1025,20 +1281,122 @@
             const tentB = new Batch(), tentG = new Batch(), tarpB = new Batch(), poleB = new Batch(), cartB = new Batch(), cartMetal = new Batch(), palletB = new Batch(), bikeB = new Batch(), bikeFrame = new Batch();
             const bagB = TEX.bags.map(() => new Batch());
             const prism = GEO.prism || (GEO.prism = (() => { const t = new THREE.CylinderGeometry(1, 1, 1, 3); t.rotateZ(Math.PI / 2); t.rotateX(-Math.PI / 2); t.translate(0, 0.5, 0); return t; })());
-            const dome = GEO.dome || (GEO.dome = new THREE.SphereGeometry(1, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2));
+            const dome = GEO.dome10 || (GEO.dome10 = new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2));
             const wheel = GEO.wheel || (GEO.wheel = new THREE.TorusGeometry(0.32, 0.035, 4, 10));
-            const camp = openCells.filter(c => {
-                if (c.bridge) return false;
-                if (Math.abs(c.i - GHALF) <= 1 && Math.abs(c.j - GHALF) <= 1) return false;
-                return (c.j >= RIVER_J0 - 3 && c.j <= RIVER_J1 + 1) || (c.i >= 10 && c.i <= 12 && c.j >= 9 && c.j <= 20) || (c.j === RIVER_J1 + 2 && srand() < 0.4);
+            const camp = openCells.filter(c => !c.bridge && !(Math.abs(c.i - GHALF) <= 1 && Math.abs(c.j - GHALF) <= 1));
+            const plane = GEO.fencePlane || (GEO.fencePlane = new THREE.PlaneGeometry(1, 1));
+            // sodium lamps along both riverwalks (there are few walls to hang lamps on here)
+            const lampB = new Batch(), glow = [];
+            for (let x = -60; x <= 60; x += 12) for (const [z, side] of [[zA - 0.7, -1], [zB + 0.7, 1]]) {
+                if (BRIDGE_I.some(bi => Math.abs(cellX(bi) - x) < 3.5)) continue;
+                lampB.box(0.12, 5, 0.12, x, 2.5, z); lampB.box(0.08, 0.08, 1.2, x, 4.95, z + side * 0.55);
+                addWall(x - 0.12, x + 0.12, z - 0.12, z + 0.12, 5);
+                glow.push(x, 4.85, z + side * 1.1);
+                const pool = new THREE.Mesh(GEO.pool || (GEO.pool = new THREE.PlaneGeometry(1, 1)), TEX.pool);
+                pool.userData.sharedGeo = true; pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.025, z - side * 1.5); pool.scale.set(7, 6, 1);
+                cityGroup.add(pool);
+                posterSpotsExtra.push({ x: x + 0.07, y: 1.7, z, ry: Math.PI / 2, small: true });
+            }
+            lampB.build(TEX.metal, cityGroup);
+            const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(glow, 3));
+            cityGroup.add(new THREE.Points(lg, new THREE.PointsMaterial({ map: TEX.glow, color: 0xff9030, size: 3.6, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })));
+            ensureTBayTextures();
+            // CN-style steel rail trestle over the river (scenery; piers stand in the water)
+            {
+                const tx = cellX(14), tr = new Batch(), z0 = zA - 1.2, z1 = zB + 1.2, top = 6.2, bot = 4.6;
+                tr.box(3.4, 0.35, z1 - z0, tx, bot, (z0 + z1) / 2);                       // deck
+                for (const sx of [-1.6, 1.6]) {
+                    tr.box(0.18, 0.18, z1 - z0, tx + sx, top, (z0 + z1) / 2);             // top chord
+                    for (let z = z0; z <= z1 + 0.01; z += 3) tr.box(0.14, top - bot, 0.14, tx + sx, (top + bot) / 2, z);
+                    for (let z = z0; z < z1 - 0.1; z += 3) tr.box(0.1, 0.1, 3.4, tx + sx, (top + bot) / 2, z + 1.5, 0, 0, Math.atan2(top - bot, 3) * ((Math.round((z - z0) / 3) % 2) ? 1 : -1));
+                }
+                for (let z = z0; z < z1; z += 0.6) tr.box(2.4, 0.08, 0.2, tx, bot + 0.22, z); // ties
+                tr.build(TEX.trestle, cityGroup);
+                const piers = new Batch();
+                for (const z of [zA + 2.5, zMid, zB - 2.5]) piers.box(2.6, bot, 1.4, tx, bot / 2, z);
+                piers.box(4.2, bot + 0.2, 1.0, tx, (bot + 0.2) / 2, zA - 0.6); piers.box(4.2, bot + 0.2, 1.0, tx, (bot + 0.2) / 2, zB + 0.6); // abutments at the curbs
+                piers.build(TEX.concrete, cityGroup);
+                addWall(tx - 2.1, tx + 2.1, zA - 1.1, zA, bot); addWall(tx - 2.1, tx + 2.1, zB, zB + 1.1, bot);
+            }
+            // birch and spruce along both banks, a few along the perimeter walls
+            const treeB = { trunk: new Batch(), spruce: new Batch(), birch: new Batch(), leaf: new Batch() };
+            camp.forEach(c => {
+                const bank = c.j === RIVER_J0 - 1 ? 1 : c.j === RIVER_J1 + 1 ? -1 : 0;
+                const perim = c.i === 1 || c.i === GN - 2 || c.j === 1;
+                if (!bank && !(perim && srand() < 0.3)) return;
+                const qz = bank || (c.j === 1 ? -1 : (srand() < 0.5 ? 1 : -1)), qx = srand() < 0.5 ? 1 : -1;
+                const x = c.x + qx * 2.35, z = c.z + qz * 2.35;
+                if (srand() > 0.7 || pointInWalls(x, 0.5, z, 0.6)) return;
+                (srand() < 0.5 ? addSpruce : addBirch)(treeB, x, z, 0.85 + srand() * 0.35);
             });
+            treeB.trunk.build(TEX.hydroWood, cityGroup); treeB.spruce.build(TEX.spruce, cityGroup); treeB.birch.build(TEX.birch, cityGroup); treeB.leaf.build(TEX.birchLeaf, cityGroup);
+            // pickup trucks parked along the low perimeter walls
+            {
+                const tb = { trucks: TEX.trucks.map(() => new Batch()), glass: new Batch(), tire: new Batch() };
+                const cand = camp.filter(c => (c.i === 1 || c.i === GN - 2 || c.j === 1) && c.d > 3).sort(() => srand() - 0.5);
+                let n = 0;
+                for (const c of cand) {
+                    if (n >= 4) break;
+                    const nx = c.i === 1 ? -1 : c.i === GN - 2 ? 1 : 0, nz = nx ? 0 : -1;
+                    const x = c.x + nx * 2.05, z = c.z + nz * 2.05, ry = nx ? Math.PI / 2 : 0;
+                    if (pointInWalls(x, 0.5, z, 1.0)) continue;
+                    addTruck(tb, x, z, ry + (srand() < 0.5 ? Math.PI : 0), Math.floor(srand() * TEX.trucks.length)); n++;
+                }
+                tb.trucks.forEach((b, k) => b.build(TEX.trucks[k], cityGroup)); tb.glass.build(TEX.truckGlass, cityGroup); tb.tire.build(TEX.metal, cityGroup);
+            }
+            // snow patches on the ground
+            {
+                const sp = new Batch();
+                for (let k = 0; k < 46; k++) { const c = camp[Math.floor(srand() * camp.length)]; if (!c) break; sp.add(plane, c.x + (srand() - 0.5) * 5, 0.02 + k * 0.0004, c.z + (srand() - 0.5) * 5, srand() * 6, 0, -Math.PI / 2, 2 + srand() * 3, 2 + srand() * 3, 1); }
+                sp.build(TEX.snowPatch, cityGroup);
+            }
+            // big tents / canopies centred on cell-corner vertices whose 4 surrounding cells are open:
+            // up to 2.8m footprint while the cross-shaped walkways through every cell stay clear
+            const usedV = new Set(), vKey = (a, b) => a * 100 + b;
+            const bagPick = () => bagB[Math.floor(srand() * bagB.length)];
+            for (let a = 1; a < GN; a++) for (let b = 1; b < GN; b++) {
+                if (!isOpen(a - 1, b - 1) || !isOpen(a, b - 1) || !isOpen(a - 1, b) || !isOpen(a, b)) continue;
+                const vx = cellX(a) - CELL / 2, vz = cellX(b) - CELL / 2;
+                if (Math.abs(vx) < 7 && Math.abs(vz) < 7) continue; // spawn stays clear
+                if (srand() > 0.9 || pointInWalls(vx, 0.5, vz, 1.45)) continue;
+                usedV.add(vKey(a, b));
+                const r = srand(), ry = Math.floor(srand() * 4) * Math.PI / 2, tb = srand() < 0.8 ? tentB : tentG;
+                const cs = Math.cos(ry), sn = Math.sin(ry);
+                if (r < 0.26) { // big ridge tent with guy poles
+                    tb.add(prism, vx, 0, vz, ry, 0, 0, 2.6, 1.2, 1.3);
+                    poleB.box(0.06, 2.0, 0.06, vx + cs * 1.36, 1.0, vz - sn * 1.36); poleB.box(0.06, 2.0, 0.06, vx - cs * 1.36, 1.0, vz + sn * 1.36);
+                    addWall(vx - 1.3, vx + 1.3, vz - 1.3, vz + 1.3, 1.8);
+                } else if (r < 0.48) { // big dome tent (+ a little one)
+                    tb.add(dome, vx, 0, vz, srand() * 6, 0, 0, 1.3, 1.2, 1.3);
+                    addWall(vx - 1.25, vx + 1.25, vz - 1.25, vz + 1.25, 1.2);
+                } else if (r < 0.7) { // large blue tarp canopy strung between 4 poles, stuff underneath
+                    for (const [p, q] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+                        poleB.box(0.07, 2.5, 0.07, vx + p * 1.3, 1.25, vz + q * 1.3);
+                        addWall(vx + p * 1.3 - 0.08, vx + p * 1.3 + 0.08, vz + q * 1.3 - 0.08, vz + q * 1.3 + 0.08, 2.5);
+                    }
+                    tarpB.add(plane, vx, 2.42, vz, ry, 0, -Math.PI / 2 + 0.12, 2.95, 2.95, 1);
+                    if (srand() < 0.5) { tb.add(dome, vx, 0, vz, srand() * 6, 0, 0, 0.75, 0.7, 0.75); addWall(vx - 0.75, vx + 0.75, vz - 0.75, vz + 0.75, 0.7); }
+                    else { bagPick().box(1.4, 0.2, 0.66, vx - sn * 0.4, 0.1, vz - cs * 0.4, ry); palletB.box(1.1, 0.3, 0.9, vx + sn * 0.6, 0.15, vz + cs * 0.6, ry); cartB.box(0.8, 0.5, 0.5, vx + cs * 0.7, 0.75, vz - sn * 0.7, ry); }
+                } else if (r < 0.85) { // tarp lean-to: sloped tarp from 1.8m down to the ground, bedding under it
+                    tarpB.add(plane, vx, 0.92, vz, ry, 0, -0.9, 2.7, 2.9, 1);
+                    for (const p of [-1, 1]) poleB.box(0.06, 1.85, 0.06, vx + cs * p * 1.3 - sn * 1.13, 0.92, vz - sn * p * 1.3 - cs * 1.13);
+                    bagPick().box(1.5, 0.2, 0.66, vx, 0.1, vz, ry);
+                    addWall(vx - 1.3, vx + 1.3, vz - 1.3, vz + 1.3, 1.5);
+                } else { // cluster: two small domes, a cart and a bike
+                    tb.add(dome, vx - 0.65, 0, vz - 0.6, 0, 0, 0, 0.62, 0.6, 0.62);
+                    (srand() < 0.5 ? tentB : tentG).add(dome, vx + 0.6, 0, vz + 0.55, 0, 0, 0, 0.62, 0.6, 0.62);
+                    cartB.box(0.8, 0.5, 0.5, vx + 0.7, 0.75, vz - 0.75, 0); cartMetal.box(0.05, 0.05, 0.55, vx + 0.25, 1.05, vz - 0.75, 0);
+                    bikeB.add(wheel, vx - 0.9, 0.34, vz + 0.75, 0); bikeB.add(wheel, vx - 0.1, 0.34, vz + 0.75, 0); bikeFrame.box(0.85, 0.05, 0.05, vx - 0.5, 0.62, vz + 0.75, 0);
+                    addWall(vx - 1.3, vx + 1.3, vz - 1.3, vz + 1.3, 1.1);
+                }
+            }
             // Props only go in the 4 corners of a cell (1.2-3m from centre), so a cross-shaped
             // walkway through every cell always stays open and the map stays connected.
             camp.forEach(c => {
                 if (srand() > 0.85) return;
-                const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]].filter(([qx, qz]) => !isOpen(c.i + qx, c.j) || !isOpen(c.i, c.j + qz) || srand() < 0.35);
+                const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]].filter(([qx, qz]) => !usedV.has(vKey(c.i + (qx > 0 ? 1 : 0), c.j + (qz > 0 ? 1 : 0))));
                 corners.sort(() => srand() - 0.5);
-                corners.slice(0, 1 + (srand() < 0.6 ? 1 : 0)).forEach(([qx, qz]) => {
+                corners.slice(0, 1 + Math.floor(srand() * 3)).forEach(([qx, qz]) => {
                     const bx = c.x + qx * 2.3, bz = c.z + qz * 2.3;
                     if (pointInWalls(bx, 0.5, bz, 0.3)) return;
                     // face along the closed side if there is one
@@ -1103,7 +1461,7 @@
 
         /* --- PROCEDURAL MAP LAYOUT (seeded maze of alleys -> guaranteed connectivity) --- */
         const CELL = 6, GN = 23, GHALF = 11;
-        let cityGroup = null, mapInfo = null, steamSystems = [];
+        let cityGroup = null, mapInfo = null, steamSystems = [], posterSpotsExtra = [], postersPlaced = [];
         function cellX(i) { return (i - GHALF) * CELL; }
         function cellOf(x) { return Math.round(x / CELL) + GHALF; }
 
@@ -1142,6 +1500,9 @@
             for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) open[id(GHALF + a, GHALF + b)] = 1;
             const water = new Uint8Array(GN * GN), bridge = new Uint8Array(GN * GN);
             if (L.river) {
+                // TENT CITY: open ground on both banks; only a sparse skyline along the far edge
+                for (let i = 1; i < GN - 1; i++) for (let j = 1; j < GN - 1; j++) open[id(i, j)] = 1;
+                for (let i = 1; i < GN - 1; i++) if (srand() < 0.45) open[id(i, GN - 2)] = 0;
                 for (let i = 0; i < GN; i++) for (let j = RIVER_J0; j <= RIVER_J1; j++) { open[id(i, j)] = 0; water[id(i, j)] = 1; }
                 for (let i = 1; i < GN - 1; i++) { open[id(i, RIVER_J0 - 1)] = 1; open[id(i, RIVER_J1 + 1)] = 1; } // riverwalks
                 for (const bi of BRIDGE_I) for (let j = RIVER_J0; j <= RIVER_J1; j++) { water[id(bi, j)] = 0; open[id(bi, j)] = 1; bridge[id(bi, j)] = 1; }
@@ -1195,6 +1556,7 @@
             disposeCity();
             ensureTextures();
             cityGroup = new THREE.Group();
+            posterSpotsExtra = [];
             scene.add(cityGroup);
 
             // Ground
@@ -1225,9 +1587,13 @@
                     d++;
                 }
                 const border = i === 0 || j === 0 || i + w === GN || j + d === GN;
-                let h = border ? 18 + srand() * 10 : 7 + srand() * 15;
-                if (LV.river && i <= 12 && i + w > 10 && (j <= 8 && j + d > 8 || j <= 21 && j + d > 21)) h = Math.max(h, 10); // overpass abutments
-                const r = { i, j, w, d, h, f: Math.floor(srand() * 3) };
+                let h = border ? 10 + srand() * 6 : 7 + srand() * 5; // older 2-3 storey Port Arthur / Fort William blocks
+                if (LV.river) {
+                    if (j + d - 1 >= GN - 2) h = 9 + srand() * 8;     // sparse far-bank skyline
+                    else if (border) h = 5.5 + srand();                // low perimeter walls around the camp
+                    else h = Math.max(10, h);                          // overpass abutment
+                }
+                const fr = srand(), r = { i, j, w, d, h, f: fr < 0.55 ? 0 : fr < 0.85 ? 1 : 2 }; // mostly red brick
                 for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) owner[(i + a) * GN + j + b] = rects.length;
                 rects.push(r);
             }
@@ -1338,8 +1704,29 @@
             });
 
             // dress every wall slot
-            let fireEscapes = 0;
+            let fireEscapes = 0, busStops = 0;
+            ensureTBayTextures();
+            const snowB = new Batch(), hydroB = new Batch();
+            const snowGeo = GEO.snowPile || (GEO.snowPile = new THREE.IcosahedronGeometry(1, 1));
             slots.forEach(s => {
+                // Thunder Bay: slush/snowbanks in the corners, hydro poles, transit stops
+                if (srand() < 0.16) { const [x, , z] = W(s, srand() < 0.5 ? -2.2 : 2.2, 0, 0.75); snowB.add(snowGeo, x, 0.02, z, srand() * 6, 0, 0, 0.8 + srand() * 0.5, 0.4 + srand() * 0.25, 0.65 + srand() * 0.3); }
+                if (!s.used && srand() < 0.05) {
+                    const [x, , z] = W(s, -2.4, 0, 0.45), ry = slotRy(s);
+                    hydroB.add(GEO.hydroPole || (GEO.hydroPole = new THREE.CylinderGeometry(0.11, 0.15, 9, 8)), x, 4.5, z);
+                    hydroB.box(2.2, 0.14, 0.14, x, 8.3, z, ry);
+                    hydroB.box(1.4, 0.12, 0.12, x, 7.7, z, ry);
+                    addWall(x - 0.18, x + 0.18, z - 0.18, z + 0.18, 9);
+                }
+                if (s.plaza && busStops < 2 && srand() < 0.3) {
+                    busStops++;
+                    const [x, , z] = W(s, -1.4, 0, 0.6), ry = Math.atan2(s.nx, s.nz);
+                    hydroB.add(GEO.busPole || (GEO.busPole = new THREE.CylinderGeometry(0.04, 0.04, 2.9, 8)), x, 1.45, z);
+                    const sign = new THREE.Mesh(GEO.busSign || (GEO.busSign = new THREE.PlaneGeometry(0.55, 0.82)), busStopMaterial());
+                    sign.userData.sharedGeo = true; sign.position.set(x + s.tx * 0.3, 2.45, z + s.tz * 0.3); sign.rotation.y = ry + Math.PI / 2;
+                    cityGroup.add(sign);
+                    addWall(x - 0.08, x + 0.08, z - 0.08, z + 0.08, 2.9);
+                }
                 const ry = slotRy(s);
                 const r1 = srand();
                 // ground-level decals
@@ -1434,6 +1821,8 @@
             });
 
             decals.build(TEX.decal, cityGroup);
+            snowB.build(TEX.snow, cityGroup); hydroB.build(TEX.hydroWood, cityGroup);
+            addBackdrop(LV);
             escapes.build(TEX.fireEscape, cityGroup);
             pipes.build(TEX.metalLight, cityGroup);
             detail.build(TEX.metal, cityGroup);
@@ -1443,8 +1832,8 @@
 
             // dumpsters (instanced, 2 draw calls)
             if (dumpBodies.length) {
-                const body = new THREE.InstancedMesh(GEO.dump || (GEO.dump = new THREE.BoxGeometry(2.4, 1.4, 1.2)), TEX.rust, dumpBodies.length);
-                const lid = new THREE.InstancedMesh(GEO.lid || (GEO.lid = new THREE.BoxGeometry(2.5, 0.12, 1.3)), TEX.lid, dumpBodies.length);
+                const body = new THREE.InstancedMesh(GEO.dumpR || (GEO.dumpR = rboxGeo(2.4, 1.4, 1.2, 0.14, 5)), TEX.rust, dumpBodies.length);
+                const lid = new THREE.InstancedMesh(GEO.lidR || (GEO.lidR = rboxGeo(2.5, 0.12, 1.3, 0.05, 4)), TEX.lid, dumpBodies.length);
                 body.userData.sharedGeo = lid.userData.sharedGeo = true;
                 dumpBodies.forEach(([x, z, ry], k) => {
                     _bm.compose(_bp.set(x, 0.7, z), _bq.setFromEuler(_be.set(0, ry, 0)), _bs.set(1, 1, 1)); body.setMatrixAt(k, _bm);
@@ -1551,6 +1940,18 @@
             const openCells = [];
             for (let i = 0; i < GN; i++) for (let j = 0; j < GN; j++) if (open[i * GN + j] && dist[i * GN + j] >= 0) openCells.push({ i, j, d: dist[i * GN + j], x: cellX(i), z: cellX(j), bridge: !!bridge[i * GN + j], n: [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => isOpen(i + a, j + b)).length });
             const campCells = LV.river ? buildRiverside(open, water, isOpen, openCells) : [];
+            // WANTED posters of AJ: wall faces (+ pillars / lamp posts in tent city), 8-12 per level
+            {
+                const spots = [];
+                slots.forEach(s => {
+                    if (s.h < 4) return;
+                    const u = (srand() - 0.5) * 3.2, [x, , z] = W(s, u, 0, 0.075);
+                    if (pointInWalls(x + s.nx * 0.6, 1.2, z + s.nz * 0.6, 0.1)) return; // something in front of it
+                    spots.push({ x, y: 1.6 + srand() * 0.5, z, ry: Math.atan2(s.nx, s.nz) });
+                });
+                posterSpotsExtra.forEach(p => spots.push(p));
+                postersPlaced = placePosters(spots, 8 + Math.floor(srand() * 5));
+            }
 
             // ground dressing: puddles (fake neon reflections), grime, vents, manholes
             const puddleB = [new Batch(), new Batch(), new Batch()], darkB = new Batch();
@@ -1578,11 +1979,12 @@
 
             // burning barrels in random corners
             const barrelCells = (LV.river ? campCells.concat(openCells.filter(c => !campCells.includes(c) && !c.bridge)) : openCells).filter(c => c.d > 0 && !c.bridge).slice().sort((a, b) => (LV.river ? (campCells.includes(b) - campCells.includes(a)) * 2 : 0) + srand() - 0.5).slice(0, LV.barrels);
-            const barrelInst = new THREE.InstancedMesh(GEO.barrel || (GEO.barrel = new THREE.CylinderGeometry(0.42, 0.42, 1.1, 7)), TEX.barrel, barrelCells.length);
+            const barrelInst = new THREE.InstancedMesh(GEO.barrelL || (GEO.barrelL = new THREE.LatheGeometry([[0.001, -0.55], [0.38, -0.55], [0.42, -0.5], [0.42, -0.42], [0.45, -0.25], [0.46, 0], [0.45, 0.25], [0.42, 0.42], [0.42, 0.5], [0.38, 0.55], [0.34, 0.5]].map(([x, y]) => new THREE.Vector2(x, y)), 14)), TEX.barrel, barrelCells.length);
             barrelInst.userData.sharedGeo = true;
             const fireGlow = [];
             barrelCells.forEach((c, k) => {
-                const bx = c.x + (srand() < 0.5 ? -2 : 2), bz = c.z + (srand() < 0.5 ? -2 : 2);
+                let bx = c.x + (srand() < 0.5 ? -2 : 2), bz = c.z + (srand() < 0.5 ? -2 : 2);
+                for (let t = 0; t < 4 && pointInWalls(bx, 0.5, bz, 0.5); t++) { bx = c.x + (t & 1 ? -2 : 2); bz = c.z + (t & 2 ? -2 : 2); }
                 _bm.compose(_bp.set(bx, 0.55, bz), _bq.identity(), _bs.set(1, 1, 1)); barrelInst.setMatrixAt(k, _bm);
                 const fire = new THREE.Mesh(GEO.fire || (GEO.fire = new THREE.ConeGeometry(0.32, 0.7, 5)), TEX.fire);
                 fire.userData.sharedGeo = true; fire.userData.flicker = srand() * 10;
@@ -1697,9 +2099,8 @@
             SHARED.ready = true;
             return SHARED;
         }
-        function boxGeo(w, h, d) {
-            const k = w + 'x' + h + 'x' + d;
-            return SHARED.box[k] || (SHARED.box[k] = new THREE.BoxGeometry(w, h, d));
+        function boxGeo(w, h, d) { // character parts: rounded low-poly boxes (capsule-like when thin)
+            return rboxGeo(w, h, d, Math.min(w, h, d) * 0.42);
         }
         function mat(color, extra) {
             const k = color + (extra ? JSON.stringify(extra) : '');
@@ -1720,7 +2121,8 @@
             part(g, 0.75, 0.85, 0.45, hood, 0, 1.15, 0, true);                 // torso
             const thugHead = part(g, 0.42, 0.45, 0.42, 0x8a5a3c, 0, 1.85, 0, false); // head
             thugHead.material = faceMaterial('thug', 0x8a5a3c);
-            part(g, 0.46, 0.16, 0.46, 0x111111, 0, 2.12, 0, false);             // beanie
+            const beanie = new THREE.Mesh(GEO.beanie || (GEO.beanie = new THREE.SphereGeometry(0.235, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.48)), mat(0x111111));
+            beanie.scale.set(1, 0.78, 1); beanie.position.y = 1.93; g.add(beanie);                 // beanie
             part(g, 0.7, 0.45, 0.44, 0x22262e, 0, 0.62, 0, false);              // jeans top
             const legL = part(g, 0.26, 0.45, 0.26, 0x22262e, -0.18, 0.22, 0, false);
             const legR = part(g, 0.26, 0.45, 0.26, 0x22262e, 0.18, 0.22, 0, false);
@@ -1893,10 +2295,7 @@
             if (obj === player) { scene.add(m); playerShadow = m; } else obj.add(m);
             return m;
         }
-        function limbGeo(r, len) {
-            const k = 'limb' + r + 'x' + len;
-            return GEO[k] || (GEO[k] = new THREE.CylinderGeometry(r * 0.85, r, len, 10));
-        }
+        function limbGeo(r, len) { return capsuleGeo(r, len - r * 0.6, r * 0.85, 10); } // capsule limbs
         function limb(parent, r, len, color, y) {
             const m = new THREE.Mesh(limbGeo(r, len), mat(color));
             m.position.y = y; parent.add(m); return m;
@@ -1961,10 +2360,10 @@
                 legs.push({ hip, knee });
             }
             const spine = new THREE.Group(); spine.position.y = HIP; body.add(spine);
-            const skirt = new THREE.Mesh(GEO.skirt6 || (GEO.skirt6 = new THREE.CylinderGeometry(0.2, 0.32, 0.36, 6, 1, true)), mat(c.skirt, { side: THREE.DoubleSide }));
+            const skirt = new THREE.Mesh(GEO.skirt12 || (GEO.skirt12 = new THREE.CylinderGeometry(0.2, 0.32, 0.36, 14, 1, true)), mat(c.skirt, { side: THREE.DoubleSide }));
             skirt.position.y = -0.08; spine.add(skirt);
             part(spine, 0.38, 0.06, 0.25, 0x1a1a1a, 0, 0.1, 0, false);                        // belt
-            const torso = new THREE.Mesh(GEO.torso4 || (GEO.torso4 = (() => { const t = new THREE.CylinderGeometry(0.22, 0.19, 0.5, 4); t.rotateY(Math.PI / 4); t.scale(1, 1, 0.62); return t; })()), mat(c.tee));
+            const torso = new THREE.Mesh(GEO.torsoR || (GEO.torsoR = (() => { const t = capsuleGeo(0.2, 0.36, 0.2, 14).clone(); t.scale(1.05, 1, 0.66); return t; })()), mat(c.tee));
             torso.position.y = 0.37; spine.add(torso);
             part(spine, 0.12, 0.5, 0.05, c.top, -0.14, 0.37, 0.13, false);                     // open jacket front
             part(spine, 0.12, 0.5, 0.05, c.top, 0.14, 0.37, 0.13, false);
@@ -1980,7 +2379,8 @@
             const head = new THREE.Group(); head.position.y = 0.7; spine.add(head);
             const face = new THREE.Mesh(boxGeo(0.32, 0.34, 0.3), faceMaterial('girl', 0xd8a07a));
             face.position.y = 0.17; head.add(face);
-            part(head, 0.35, 0.1, 0.33, c.hair, 0, 0.37, -0.01, false);
+            const hcap = new THREE.Mesh(GEO.girlCap || (GEO.girlCap = new THREE.SphereGeometry(0.19, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.42)), mat(c.hair));
+            hcap.scale.set(1, 0.95, 1); hcap.position.set(0, 0.2, -0.01); head.add(hcap);
             part(head, 0.34, 0.07, 0.05, c.hair, 0, 0.31, 0.15, false);                         // bangs
             if (c.style === 'long') { part(head, 0.36, 0.55, 0.08, c.hair, 0, 0.08, -0.16, false); part(head, 0.05, 0.42, 0.28, c.hair, -0.18, 0.14, -0.01, false); part(head, 0.05, 0.42, 0.28, c.hair, 0.18, 0.14, -0.01, false); }
             if (c.style === 'bob') { part(head, 0.4, 0.3, 0.1, c.hair, 0, 0.2, -0.16, false); part(head, 0.07, 0.3, 0.32, c.hair, -0.19, 0.2, 0, false); part(head, 0.07, 0.3, 0.32, c.hair, 0.19, 0.2, 0, false); }
@@ -2379,6 +2779,12 @@
             bindBtn('btn-hit', () => { hitHeld = true; tryAttack(); }, () => { hitHeld = false; });
 
             $('btn-start').addEventListener('click', () => startGame(selectedLevel));
+            $('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); pauseGame(); });
+            $('btn-pause').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            $('btn-resume').addEventListener('click', resumeGame);
+            $('btn-restart-level').addEventListener('click', () => { $('pause-screen').style.display = 'none'; startGame(currentLevel); });
+            $('btn-mainmenu').addEventListener('click', () => { $('pause-screen').style.display = 'none'; showMenu(); });
+            document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
             $('lvl-alley').addEventListener('click', () => selectLevel(0));
             $('lvl-river').addEventListener('click', () => selectLevel(1));
             $('btn-restart').addEventListener('click', () => startGame(currentLevel));
@@ -2402,7 +2808,7 @@
                 if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
             } catch (e) { /* optional */ }
             resetGame();
-            ['start-screen', 'win-screen', 'gameover-screen'].forEach(id => $(id).style.display = 'none');
+            ['start-screen', 'win-screen', 'gameover-screen', 'pause-screen'].forEach(id => $(id).style.display = 'none');
             $('hud').style.display = 'block';
             gameState = 'playing';
             clock.getDelta();
@@ -2414,6 +2820,19 @@
             $('hud').style.display = 'none';
             healers.forEach(h => h.bubble && (h.bubble.style.opacity = 0));
             $('start-screen').style.display = 'flex';
+        }
+        function pauseGame() {
+            if (gameState !== 'playing') return;
+            gameState = 'paused';
+            input.x = 0; input.y = 0; joyTouchId = null; camTouchId = null; hitHeld = false; wantJump = false; controls.resetJoystick();
+            $('pause-level').textContent = 'LV' + (currentLevel + 1) + ' ' + LEVELS[currentLevel].name + '  •  ' + formatTime(playTime);
+            $('pause-screen').style.display = 'flex';
+        }
+        function resumeGame() {
+            if (gameState !== 'paused') return;
+            $('pause-screen').style.display = 'none';
+            gameState = 'playing';
+            clock.getDelta(); // don't count paused time
         }
         function selectLevel(k) {
             selectedLevel = k;
@@ -2785,6 +3204,8 @@
                 player.rotation.x += (-Math.PI / 2 - player.rotation.x) * Math.min(1, dt * 6);
                 updateThugs(dt);
                 updateGirls(dt);
+            } else if (gameState === 'paused') {
+                // frozen: no HP drain, no enemies, no girls, no timers
             } else if (gameState === 'menu') {
                 cameraAngleX += dt * 0.12; // slow orbit behind the title screen
                 updateGirls(dt);
@@ -2856,6 +3277,15 @@
             },
             freezeDrain: (on) => { window.__noDrain = on; },
             level: () => currentLevel,
+            posters: () => postersPlaced,
+            posterCloseup: (crime) => { // camera ~2m in front of a poster (AJ hidden) for a screenshot
+                const p = postersPlaced.find(q => !crime || q.crime.indexOf(crime) === 0) || postersPlaced[0];
+                if (!p) return false;
+                window.__freezeCam = true; player.visible = false;
+                const nx = Math.sin(p.ry), nz = Math.cos(p.ry);
+                camera.position.set(p.x + nx * 2.1, p.y + 0.15, p.z + nz * 2.1); camera.lookAt(p.x, p.y, p.z);
+                return p;
+            },
             relicCloseup: () => { // camera right next to the nearest ground relic (AJ hidden) for a screenshot
                 const r = relics.filter(r => !r.taken && r.baseY < 2).sort((a, b) => a.mesh.position.distanceTo(player.position) - b.mesh.position.distanceTo(player.position))[0];
                 if (!r) return false;
